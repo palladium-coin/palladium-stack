@@ -125,6 +125,25 @@ rpcport=12332
 server=1
 ```
 
+**⚠️ Linux Systems - Important:**
+
+If you're running on **Linux**, you must also add the following lines to allow Docker containers to connect to your Palladium node:
+
+```conf
+# Allow Docker network connections (required on Linux)
+rpcbind=0.0.0.0
+rpcallowip=127.0.0.1
+rpcallowip=172.17.0.0/16
+rpcallowip=172.18.0.0/16
+```
+
+**Why is this needed?**
+- On **Linux**, Docker containers run in isolated network bridges (typically `172.17.0.0/16` or `172.18.0.0/16`)
+- Without `rpcallowip`, the Palladium node only accepts connections from localhost (`127.0.0.1`)
+- On **Windows/Mac** with Docker Desktop, this is handled automatically by the Docker engine
+- `rpcbind=0.0.0.0` makes the RPC server listen on all network interfaces (not just localhost)
+
+
 Restart your Palladium Core node to apply testnet configuration.
 
 #### Step 2: Modify docker-compose.yml
