@@ -17,6 +17,10 @@ class Palladium(Bitcoin):
     # === Genesis hash (Bitcoin mainnet) ===
     GENESIS_HASH = "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
 
+    # === Checkpoints ===
+    # Since we share Genesis with Bitcoin, we must clear inherited checkpoints
+    CHECKPOINTS = []
+
     # === Default ports ===
     RPC_PORT = 2332
     PEER_DEFAULT_PORTS = {'t': '2333', 's': '52333'}
