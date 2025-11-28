@@ -13,9 +13,9 @@ services:
       # ===== Network Configuration =====
       # For MAINNET use: COIN: "Palladium" and DAEMON_URL port 2332
       # For TESTNET use: COIN: "PalladiumTestnet" and DAEMON_URL port 12332
+      # NOTE: Do not set NET manually - it is automatically set by the COIN class
 
       COIN: "Palladium"  # Change to "PalladiumTestnet" for testnet
-      NET: "mainnet"     # This is set automatically by the COIN parameter
 
       # Palladium Core RPC connection
       # MAINNET: port 2332 | TESTNET: port 12332

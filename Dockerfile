@@ -7,14 +7,19 @@ import re, pathlib
 p = pathlib.Path('/electrumx/src/electrumx/lib/coins.py')
 s = p.read_text(encoding='utf-8')
 
-if 'from electrumx.lib.coins_plm import Palladium' not in s:
-    s += '\nfrom electrumx.lib.coins_plm import Palladium\n'
+# Import both Palladium and PalladiumTestnet
+if 'from electrumx.lib.coins_plm import Palladium, PalladiumTestnet' not in s:
+    s += '\nfrom electrumx.lib.coins_plm import Palladium, PalladiumTestnet\n'
 
+# Register both coins in COIN_CLASSES
 if '"Palladium": Palladium' not in s:
     s = re.sub(r'(COIN_CLASSES\s*=\s*\{)', r'\1\n    "Palladium": Palladium,', s)
 
+if '"PalladiumTestnet": PalladiumTestnet' not in s:
+    s = re.sub(r'(COIN_CLASSES\s*=\s*\{)', r'\1\n    "PalladiumTestnet": PalladiumTestnet,', s)
+
 p.write_text(s, encoding='utf-8')
-print('>> Patched ElectrumX with Palladium coin')
+print('>> Patched ElectrumX with Palladium and PalladiumTestnet coins')
 PY
 
 RUN mkdir -p /certs && \
