@@ -1,5 +1,8 @@
 services:
   electrumx:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: electrumx-plm:local
     container_name: electrumx-plm
     restart: unless-stopped

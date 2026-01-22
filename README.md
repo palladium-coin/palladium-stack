@@ -190,11 +190,8 @@ rm -rf ./data/*
 #### Step 4: Rebuild and Restart
 
 ```bash
-# Rebuild the image (if you modified coins_plm.py)
-docker build -t electrumx-plm:local .
-
-# Start the container
-docker compose up -d
+# Rebuild and start the container
+docker compose up -d --build
 
 # Monitor the logs
 docker compose logs -f
@@ -242,23 +239,31 @@ To switch back from testnet to mainnet:
 
 1. Navigate to the directory containing `docker-compose.yml` and `Dockerfile`.
 
-2. Build the custom Docker image:
-
-   ```bash
-   docker build -t electrumx-plm:local .
-   ```
-
-3. Start the containers with Docker Compose:
+2. Start the containers with Docker Compose (builds the image automatically on first run):
 
    ```bash
    docker compose up -d
    ```
 
-4. Check the logs to verify that ElectrumX started correctly:
+   **Note:** Docker Compose will automatically build the image if it doesn't exist. No need to run `docker build` manually!
+
+3. Check the logs to verify that ElectrumX started correctly:
 
    ```bash
    docker compose logs -f
    ```
+
+### Manual Build (Optional)
+
+If you want to manually rebuild the Docker image (e.g., after code changes):
+
+```bash
+# Rebuild the image
+docker compose build
+
+# Or rebuild and restart in one command
+docker compose up -d --build
+```
 ---
 
 ## Testing with `test-server.py`
