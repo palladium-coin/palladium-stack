@@ -47,7 +47,48 @@ For Docker Compose:
 
 ---
 
-## Configuration
+## Palladium Node Configuration
+
+Before running ElectrumX, you need to configure your Palladium Core node to accept RPC connections. Edit your `palladium.conf` file (usually located in `~/.palladium/palladium.conf` on Linux/Mac or `%APPDATA%\Palladium\palladium.conf` on Windows).
+
+### Recommended palladium.conf for Mainnet
+
+```conf
+# Server mode (required for RPC)
+server=1
+
+# RPC credentials (change these!)
+rpcuser=<rpcuser>
+rpcpassword=<rpcpassword>
+
+# RPC port (default for mainnet)
+rpcport=2332
+
+# Allow Docker containers to connect (REQUIRED for ElectrumX)
+# These settings allow RPC connections from Docker's network
+rpcbind=0.0.0.0
+rpcallowip=127.0.0.1
+rpcallowip=172.17.0.0/16
+rpcallowip=172.18.0.0/16
+
+# Optional: reduce debug log verbosity
+printtoconsole=0
+```
+
+**Important Notes:**
+- **`rpcbind=0.0.0.0`**: Makes the RPC server listen on all network interfaces (not just localhost)
+- **`rpcallowip=172.17.0.0/16` and `172.18.0.0/16`**: Allow connections from Docker's default bridge networks
+  - On **Linux**, Docker containers run in isolated networks (typically `172.17.x.x` or `172.18.x.x`)
+  - Without these settings, ElectrumX won't be able to connect to your Palladium node
+  - On **Windows/Mac** with Docker Desktop, these are still recommended for consistency
+- **Security**: These settings only allow local Docker containers to connect, not external machines
+- **Change the credentials**: Never use default usernames/passwords in production
+
+After editing `palladium.conf`, restart your Palladium Core node for the changes to take effect.
+
+---
+
+## ElectrumX Configuration
 
 In the `docker-compose.yml` file, you can set the RPC credentials of the Palladium full node that ElectrumX will use:
 
@@ -110,39 +151,30 @@ To run ElectrumX on **testnet**, follow these steps:
 
 #### Step 1: Configure Palladium Core for Testnet
 
-Edit your Palladium Core configuration file (`palladium.conf`) and add:
+Edit your Palladium Core configuration file (`palladium.conf`):
 
 ```conf
 # Enable testnet
 testnet=1
 
-# RPC settings for testnet
+# Server mode (required for RPC)
+server=1
+
+# RPC credentials (change these!)
 rpcuser=your_rpc_username
-rpcpassword=your_rpc_password
+rpcpassword=your_secure_rpc_password
+
+# RPC port for testnet
 rpcport=12332
 
-# Allow RPC connections
-server=1
-```
-
-**⚠️ Linux Systems - Important:**
-
-If you're running on **Linux**, you must also add the following lines to allow Docker containers to connect to your Palladium node:
-
-```conf
-# Allow Docker network connections (required on Linux)
+# Allow Docker containers to connect (REQUIRED for ElectrumX)
 rpcbind=0.0.0.0
 rpcallowip=127.0.0.1
 rpcallowip=172.17.0.0/16
 rpcallowip=172.18.0.0/16
 ```
 
-**Why is this needed?**
-- On **Linux**, Docker containers run in isolated network bridges (typically `172.17.0.0/16` or `172.18.0.0/16`)
-- Without `rpcallowip`, the Palladium node only accepts connections from localhost (`127.0.0.1`)
-- On **Windows/Mac** with Docker Desktop, this is handled automatically by the Docker engine
-- `rpcbind=0.0.0.0` makes the RPC server listen on all network interfaces (not just localhost)
-
+**Important:** The `rpcbind` and `rpcallowip` settings are **required** for Docker connectivity on all platforms. Without these, ElectrumX won't be able to connect to your Palladium node from inside the Docker container.
 
 Restart your Palladium Core node to apply testnet configuration.
 
