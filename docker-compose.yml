@@ -1,28 +1,55 @@
 services:
+  palladiumd:
+    build:
+      context: .
+      dockerfile: Dockerfile.palladium-node
+    image: palladium-node:local
+    container_name: palladium-node
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:2332:2332"  # RPC port mainnet (accessible from network)
+      - "0.0.0.0:2333:2333"  # P2P port mainnet (accessible from network)
+      - "0.0.0.0:28332:28332"  # ZMQ hashblock (accessible from network)
+      - "0.0.0.0:28334:28334"  # ZMQ rawblock (accessible from network)
+      - "0.0.0.0:28335:28335"  # ZMQ rawtx (accessible from network)
+      # For testnet, expose: 12332 (RPC) and 12333 (P2P)
+
+    volumes:
+      # Mount palladium-node-data folder (contains config and blockchain data)
+      - ./palladium-node-data:/root/.palladium
+
+    command: >
+      palladiumd
+      -conf=/root/.palladium/palladium.conf
+      -datadir=/root/.palladium
+      -rpcbind=0.0.0.0
+      -rpcallowip=0.0.0.0/0
+      -daemon=0
+      -printtoconsole=1
+
   electrumx:
     build:
       context: .
-      dockerfile: Dockerfile
-    image: electrumx-plm:local
-    container_name: electrumx-plm
+      dockerfile: Dockerfile.electrumx
+    image: electrumx-server:local
+    container_name: electrumx-server
     restart: unless-stopped
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    depends_on:
+      - palladiumd
     ports:
-      - "50001:50001"  # TCP
-      - "50002:50002"  # SSL
+      - "0.0.0.0:50001:50001"  # TCP (accessible from network)
+      - "0.0.0.0:50002:50002"  # SSL (accessible from network)
 
     environment:
       # ===== Network Configuration =====
-      # For MAINNET use: COIN: "Palladium", NET: "mainnet" and DAEMON_URL port 2332
-      # For TESTNET use: COIN: "Palladium", NET: "testnet" and DAEMON_URL port 12332
+      # For MAINNET use: COIN: "Palladium", NET: "mainnet"
+      # For TESTNET use: COIN: "Palladium", NET: "testnet"
 
       COIN: "Palladium"  # Always "Palladium" for both networks
       NET: "mainnet"
 
-      # Palladium Core RPC connection
-      # MAINNET: port 2332 | TESTNET: port 12332
-      DAEMON_URL: "http://<rpcuser>:<rpcpassword>@host.docker.internal:2332/"  # RPC credentials
+      # NOTE: RPC credentials are automatically read from palladium.conf
+      # No need to configure DAEMON_URL manually anymore!
 
       SERVICES: "tcp://0.0.0.0:50001,ssl://0.0.0.0:50002"
 
@@ -42,4 +69,5 @@ services:
         hard: 1048576
 
     volumes:
-      - ./data:/data
+      - ./electrumx-data:/data
+      - ./palladium-node-data/palladium.conf:/palladium-config/palladium.conf:ro

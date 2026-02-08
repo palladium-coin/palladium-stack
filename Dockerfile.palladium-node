@@ -1,0 +1,38 @@
+FROM ubuntu:22.04
+
+# Install required dependencies
+RUN apt-get update && apt-get install -y \
+    libboost-system1.74.0 \
+    libboost-filesystem1.74.0 \
+    libboost-thread1.74.0 \
+    libboost-chrono1.74.0 \
+    libevent-2.1-7 \
+    libevent-pthreads-2.1-7 \
+    libzmq5 \
+    libminiupnpc17 \
+    libnatpmp1 \
+    libsqlite3-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Palladium binaries from daemon folder
+COPY daemon/palladiumd /usr/local/bin/
+COPY daemon/palladium-cli /usr/local/bin/
+COPY daemon/palladium-tx /usr/local/bin/
+COPY daemon/palladium-wallet /usr/local/bin/
+
+# Make binaries executable
+RUN chmod +x /usr/local/bin/palladiumd \
+    /usr/local/bin/palladium-cli \
+    /usr/local/bin/palladium-tx \
+    /usr/local/bin/palladium-wallet
+
+# Create data directory
+RUN mkdir -p /root/.palladium
+
+# Expose RPC and P2P ports
+# Mainnet: 2332 (RPC), 2333 (P2P)
+# Testnet: 12332 (RPC), 12333 (P2P)
+EXPOSE 2332 2333 12332 12333
+
+# Default command (will be overridden by docker-compose)
+CMD ["palladiumd", "-printtoconsole=1"]

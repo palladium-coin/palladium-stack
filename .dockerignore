@@ -11,8 +11,12 @@ LICENSE
 docker-compose.yml
 .dockerignore
 
+# IMPORTANT: entrypoint.sh is needed and should NOT be ignored
+# !entrypoint.sh
+
 # Data and runtime files
-data/
+electrumx-data/
+palladium-node-data/
 *.log
 *.pid
 
