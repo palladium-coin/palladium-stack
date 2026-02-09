@@ -71,3 +71,26 @@ services:
     volumes:
       - ./electrumx-data:/data
       - ./palladium-node-data/palladium.conf:/palladium-config/palladium.conf:ro
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    image: palladium-dashboard:local
+    container_name: palladium-dashboard
+    restart: unless-stopped
+    depends_on:
+      - palladiumd
+      - electrumx
+    ports:
+      - "0.0.0.0:8080:8080"  # Web Dashboard (accessible from network)
+
+    environment:
+      PALLADIUM_RPC_HOST: "palladiumd"
+      PALLADIUM_RPC_PORT: "2332"
+      ELECTRUMX_RPC_HOST: "electrumx"
+      ELECTRUMX_RPC_PORT: "8000"
+
+    volumes:
+      - ./palladium-node-data/palladium.conf:/palladium-config/palladium.conf:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro

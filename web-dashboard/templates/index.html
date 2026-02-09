@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Palladium & ElectrumX Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=10">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1>
+                    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                    </svg>
+                    Palladium Network Dashboard
+                </h1>
+                <div class="health-status" id="healthStatus">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Checking...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Grid -->
+        <div class="dashboard-grid">
+            <!-- System Resources -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>System Resources</h2>
+                    <span class="card-icon">💻</span>
+                </div>
+                <div class="card-content">
+                    <div class="resource-item">
+                        <div class="resource-label">CPU Usage</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="cpuProgress"></div>
+                        </div>
+                        <div class="resource-value" id="cpuValue">--%</div>
+                    </div>
+                    <div class="resource-item">
+                        <div class="resource-label">Memory Usage</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="memoryProgress"></div>
+                        </div>
+                        <div class="resource-value" id="memoryValue">--%</div>
+                    </div>
+                    <div class="resource-item">
+                        <div class="resource-label">Disk Usage</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="diskProgress"></div>
+                        </div>
+                        <div class="resource-value" id="diskValue">--%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Palladium Node Info -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>Palladium Node</h2>
+                    <span class="card-icon">⛏️</span>
+                </div>
+                <div class="card-content">
+                    <div class="stat-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">Block Height</div>
+                            <div class="stat-value" id="blockHeight">--</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Difficulty</div>
+                            <div class="stat-value" id="difficulty">--</div>
+                        </div>
+                        <a href="/peers" class="stat-item stat-link">
+                            <div class="stat-label">Connections</div>
+                            <div class="stat-value" id="connections">--</div>
+                        </a>
+                        <div class="stat-item">
+                            <div class="stat-label">Network</div>
+                            <div class="stat-value" id="network">--</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Sync Progress</div>
+                            <div class="stat-value" id="syncProgress">--</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Version</div>
+                            <div class="stat-value" id="nodeVersion">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ElectrumX Server -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>ElectrumX Server</h2>
+                    <span class="card-icon">⚡</span>
+                </div>
+                <div class="card-content">
+                    <div class="electrumx-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">Server Version</div>
+                            <div class="stat-value" id="serverVersion">--</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Active Sessions</div>
+                            <div class="stat-value" id="activeSessions">--</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Database Size</div>
+                            <div class="stat-value" id="dbSize">--</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Uptime</div>
+                            <div class="stat-value" id="uptime">--</div>
+                        </div>
+                        <div class="stat-item full-width">
+                            <div class="stat-label">Server IP</div>
+                            <div class="stat-value" id="serverIP">--</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">TCP Port</div>
+                            <div class="stat-value" id="tcpPort">--</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">SSL Port</div>
+                            <div class="stat-value" id="sslPort">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mempool Info -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>Mempool</h2>
+                    <span class="card-icon">📝</span>
+                </div>
+                <div class="card-content">
+                    <div class="stat-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">Transactions</div>
+                            <div class="stat-value" id="mempoolSize">--</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Total Size</div>
+                            <div class="stat-value" id="mempoolBytes">--</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Usage</div>
+                            <div class="stat-value" id="mempoolUsage">--</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Max Size</div>
+                            <div class="stat-value" id="mempoolMax">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Blocks Table -->
+            <div class="card full-width">
+                <div class="card-header">
+                    <h2>Recent Blocks</h2>
+                    <span class="card-icon">🔗</span>
+                </div>
+                <div class="card-content">
+                    <div class="table-container">
+                        <table class="blocks-table">
+                            <thead>
+                                <tr>
+                                    <th>Height</th>
+                                    <th>Hash</th>
+                                    <th>Time</th>
+                                    <th>Size</th>
+                                    <th>Transactions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentBlocksTable">
+                                <tr><td colspan="5" class="loading">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Last updated: <span id="lastUpdate">--</span></p>
+            <p>Auto-refresh every 10 seconds</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='dashboard.js') }}?v=10"></script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Peers - Palladium Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=7">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1>
+                    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                    </svg>
+                    Network Peers
+                </h1>
+                <a href="/" class="back-button">
+                    <span>← Back to Dashboard</span>
+                </a>
+            </div>
+        </header>
+
+        <!-- Peers Statistics -->
+        <div class="dashboard-grid">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Connection Statistics</h2>
+                    <span class="card-icon">📊</span>
+                </div>
+                <div class="card-content">
+                    <div class="stat-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">Total Peers</div>
+                            <div class="stat-value" id="totalPeers">--</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Inbound</div>
+                            <div class="stat-value" id="inboundPeers">--</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Outbound</div>
+                            <div class="stat-value" id="outboundPeers">--</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Total Traffic</div>
+                            <div class="stat-value" id="totalTraffic">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Peers Table -->
+        <div class="card full-width">
+            <div class="card-header">
+                <h2>Connected Peers</h2>
+                <span class="card-icon">🌐</span>
+            </div>
+            <div class="card-content">
+                <div class="table-container">
+                    <table class="blocks-table peers-table">
+                        <thead>
+                            <tr>
+                                <th>IP Address</th>
+                                <th>Direction</th>
+                                <th>Version</th>
+                                <th>Connection Time</th>
+                                <th>Data Sent</th>
+                                <th>Data Received</th>
+                                <th>Total Traffic</th>
+                            </tr>
+                        </thead>
+                        <tbody id="peersTableBody">
+                            <tr><td colspan="7" class="loading">Loading peers...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Last updated: <span id="lastUpdate">--</span></p>
+            <p>Auto-refresh every 10 seconds</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='peers.js') }}?v=7"></script>
+</body>
+</html>
