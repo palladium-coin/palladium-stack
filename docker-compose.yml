@@ -15,8 +15,8 @@ services:
       # For testnet, expose: 12332 (RPC) and 12333 (P2P)
 
     volumes:
-      # Mount palladium-node-data folder (contains config and blockchain data)
-      - ./palladium-node-data:/root/.palladium
+      # Mount .palladium folder (contains config and blockchain data)
+      - ./.palladium:/root/.palladium
 
     command: >
       palladiumd
@@ -70,7 +70,7 @@ services:
 
     volumes:
       - ./electrumx-data:/data
-      - ./palladium-node-data/palladium.conf:/palladium-config/palladium.conf:ro
+      - ./.palladium/palladium.conf:/palladium-config/palladium.conf:ro
 
   dashboard:
     build:
@@ -92,5 +92,5 @@ services:
       ELECTRUMX_RPC_PORT: "8000"
 
     volumes:
-      - ./palladium-node-data/palladium.conf:/palladium-config/palladium.conf:ro
+      - ./.palladium/palladium.conf:/palladium-config/palladium.conf:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro

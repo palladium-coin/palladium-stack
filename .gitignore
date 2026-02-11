@@ -2,8 +2,8 @@
 /electrumx-data/
 
 # Palladium node data (keep only the config file)
-/palladium-node-data/*
-!/palladium-node-data/palladium.conf
+/.palladium/*
+!/.palladium/palladium.conf
 
 # Logs
 *.log

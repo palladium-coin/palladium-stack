@@ -13,7 +13,7 @@ get_conf_value() {
 # Check if palladium.conf exists
 if [ ! -f "$PALLADIUM_CONF" ]; then
     echo "ERROR: palladium.conf not found at $PALLADIUM_CONF"
-    echo "Please ensure the palladium-node-data volume is mounted correctly."
+    echo "Please ensure the .palladium volume is mounted correctly."
     exit 1
 fi
 

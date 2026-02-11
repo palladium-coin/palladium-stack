@@ -16,7 +16,7 @@ docker-compose.yml
 
 # Data and runtime files
 electrumx-data/
-palladium-node-data/
+.palladium/
 *.log
 *.pid
 

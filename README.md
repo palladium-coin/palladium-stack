@@ -6,7 +6,7 @@ Everything runs in Docker containers - no need to install dependencies on your h
 
 ---
 
-## 📦 What You Get
+## What You Get
 
 - **Palladium Full Node** (palladiumd) - Runs in Docker with full blockchain sync
 - **ElectrumX Server** - Pre-configured for Palladium network with automatic indexing
@@ -17,7 +17,7 @@ Everything runs in Docker containers - no need to install dependencies on your h
 
 ---
 
-## 🖥️ Tested Platforms
+## Tested Platforms
 
 * Debian 12/13
 * Ubuntu 24.04/22.04 LTS
@@ -32,7 +32,7 @@ Everything runs in Docker containers - no need to install dependencies on your h
 
 ---
 
-## 📋 Project Structure
+## Project Structure
 
 ```
 plm-electrumx/
@@ -41,7 +41,7 @@ plm-electrumx/
 │   ├── palladium-cli                # CLI tool (required)
 │   ├── palladium-tx                 # Transaction tool (optional)
 │   └── palladium-wallet             # Wallet tool (optional)
-├── palladium-node-data/
+├── .palladium/
 │   ├── palladium.conf               # Node configuration (edit this!)
 │   ├── blocks/                      # Blockchain blocks (auto-generated)
 │   ├── chainstate/                  # Blockchain state (auto-generated)
@@ -61,7 +61,7 @@ plm-electrumx/
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 Internet                Router/Firewall           Docker Network
@@ -75,25 +75,25 @@ Internet                Router/Firewall           Docker Network
    │                    └────────────┘ ││ │     │        │
    │                                   ││ │     │        │
    │                         ┌─────────▼▼─▼─────▼─────┐  │
-   │                         │   Docker Host           │  │
-   │                         │                         │  │
-   │                         │  ┌───────────────────┐  │  │
-   │                         │  │  Palladium Node   │  │  │
-   │                         │  │   (palladiumd)    │  │  │
-   │                         │  │   Port: 2333      │  │  │
-   │                         │  └────────┬──────────┘  │  │
-   │                         │           │             │  │
-   │                         │  ┌────────▼──────────┐  │  │
-   │                         │  │  ElectrumX Server │  │  │
-Clients◄───────────────────────┤  TCP: 50001       │  │  │
-(Electrum                    │  │  SSL: 50002       │  │  │
- Wallets)                    │  └────────┬──────────┘  │  │
-   │                         │           │             │  │
-   │                         │  ┌────────▼──────────┐  │  │
-   ▼                         │  │  Web Dashboard    │  │  │
+   │                         │   Docker Host          │  │
+   │                         │                        │  │
+   │                         │  ┌───────────────────┐ │  │
+   │                         │  │  Palladium Node   │ │  │
+   │                         │  │   (palladiumd)    │ │  │
+   │                         │  │   Port: 2333      │ │  │
+   │                         │  └────────┬──────────┘ │  │
+   │                         │           │            │  │
+   │                         │  ┌────────▼──────────┐ │  │
+   │                         │  │  ElectrumX Server │ │  │
+Clients◄────────────────────────┤  TCP: 50001       │ │  │
+(Electrum                    │  │  SSL: 50002       │ │  │
+ Wallets)                    │  └────────┬──────────┘ │  │
+   │                         │           │            │  │
+   │                         │  ┌────────▼─────────┐  │  │
+   ▼                         │  │  Web Dashboard   │  │  │
 Browser◄───────────────────────┤  Port: 8080       │  │  │
-                            │  └───────────────────┘  │  │
-                            └─────────────────────────┘  │
+                             │  └──────────────────┘  │  │
+                             └────────────────────────┘  │
 ```
 
 **Component Communication:**
@@ -105,7 +105,7 @@ Browser◄───────────────────────�
 
 ---
 
-## 🔧 Requirements
+## Requirements
 
 * [Docker](https://docs.docker.com/get-docker/) 20.10+
 * [Docker Compose](https://docs.docker.com/compose/install/) 2.0+
@@ -113,7 +113,7 @@ Browser◄───────────────────────�
 
 ---
 
-## 🚀 Quick Start Guide
+## Quick Start Guide
 
 ### Step 1: Clone the Repository
 
@@ -161,7 +161,7 @@ ls -lh daemon/
 Open the configuration file:
 
 ```bash
-nano palladium-node-data/palladium.conf
+nano .palladium/palladium.conf
 ```
 
 **Change these credentials:**
@@ -252,9 +252,9 @@ For your ElectrumX server to be accessible from the internet, you **must** confi
 If you have a synced Palladium blockchain, copy it to speed up initial sync:
 
 ```bash
-cp -r ~/.palladium/blocks palladium-node-data/
-cp -r ~/.palladium/chainstate palladium-node-data/
-cp -r ~/.palladium/indexes palladium-node-data/
+cp -r ~/.palladium/blocks .palladium/
+cp -r ~/.palladium/chainstate .palladium/
+cp -r ~/.palladium/indexes .palladium/
 ```
 
 **Skip this** if syncing from scratch - the node will automatically start syncing.
@@ -422,7 +422,7 @@ python test-server.py <your-public-ip>:50002
 
 ### Palladium Node Settings
 
-Key settings in `palladium-node-data/palladium.conf`:
+Key settings in `.palladium/palladium.conf`:
 
 | Setting | Value | Purpose |
 |---------|-------|---------|
@@ -725,8 +725,8 @@ environment:
 
 ## Notes
 
-* **Data Persistence:** All data stored in `./palladium-node-data/` and `./electrumx-data/`
-* **Backup:** Regularly backup `palladium-node-data/wallet.dat` if you store funds
+* **Data Persistence:** All data stored in `./.palladium/` and `./electrumx-data/`
+* **Backup:** Regularly backup `.palladium/wallet.dat` if you store funds
 * **Network Switch:** Always clear ElectrumX database when switching networks
 * **Updates:** Check for Palladium Core updates regularly
 
@@ -738,7 +738,7 @@ Distributed under the **MIT** license. See `LICENSE` file for details.
 
 ---
 
-## 🆘 Support
+## Support
 
 - **Issues:** [GitHub Issues](https://github.com/palladium-coin/plm-electrumx/issues)
 - **Palladium Community:** [Palladium Coin](https://github.com/palladium-coin)
@@ -749,4 +749,3 @@ Distributed under the **MIT** license. See `LICENSE` file for details.
 ## Credits
 
 - **ElectrumX:** [kyuupichan/electrumx](https://github.com/kyuupichan/electrumx)
-- **Palladium Core:** [palladium-coin/palladiumcore](https://github.com/palladium-coin/palladiumcore)
