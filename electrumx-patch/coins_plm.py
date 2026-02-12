@@ -21,6 +21,11 @@ class Palladium(Bitcoin):
     # Since we share Genesis with Bitcoin, we must clear inherited checkpoints
     CHECKPOINTS = []
 
+    # === Network statistics (required by ElectrumX) ===
+    TX_COUNT = 457478
+    TX_COUNT_HEIGHT = 382404
+    TX_PER_BLOCK = 2
+
     # === Default ports ===
     RPC_PORT = 2332
     PEER_DEFAULT_PORTS = {'t': '2333', 's': '52333'}
@@ -44,6 +49,11 @@ class PalladiumTestnet(Palladium):
 
     # === Genesis hash (Bitcoin testnet) ===
     GENESIS_HASH = "000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943"
+
+    # === Network statistics (required by ElectrumX) ===
+    TX_COUNT = 500
+    TX_COUNT_HEIGHT = 1
+    TX_PER_BLOCK = 2
 
     # === Testnet ports ===
     RPC_PORT = 12332
