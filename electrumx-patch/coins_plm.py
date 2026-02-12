@@ -28,7 +28,7 @@ class Palladium(Bitcoin):
 
     # === Default ports ===
     RPC_PORT = 2332
-    PEER_DEFAULT_PORTS = {'t': '2333', 's': '52333'}
+    PEER_DEFAULT_PORTS = {'t': '50001', 's': '50002'}
 
     # === Deserializer ===
     DESERIALIZER = lib_tx.DeserializerSegWit
@@ -57,5 +57,5 @@ class PalladiumTestnet(Palladium):
 
     # === Testnet ports ===
     RPC_PORT = 12332
-    PEER_DEFAULT_PORTS = {'t': '12333', 's': '62333'}
+    PEER_DEFAULT_PORTS = {'t': '60001', 's': '60002'}
 
