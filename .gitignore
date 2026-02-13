@@ -31,3 +31,9 @@ Thumbs.db
 # Python cache files
 __pycache__/
 *.py[cod]
+
+# Daemon binaries
+/daemon/palladiumd
+/daemon/palladium-cli
+/daemon/palladium-tx
+/daemon/palladium-wallet

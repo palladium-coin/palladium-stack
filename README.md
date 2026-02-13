@@ -10,10 +10,10 @@ Everything runs in Docker containers - no need to install dependencies on your h
 
 - **Palladium Full Node** (palladiumd) - Runs in Docker with full blockchain sync
 - **ElectrumX Server** - Pre-configured for Palladium network with automatic indexing
-- **Web Dashboard** - Professional monitoring interface with real-time statistics, charts, and peer management
+- **Web Dashboard** - Professional monitoring interface with real-time statistics, peer views, and Electrum server discovery
 - **Automatic RPC Configuration** - ElectrumX reads credentials directly from palladium.conf
 - **Self-Signed SSL Certificates** - Secure connections ready out-of-the-box
-- **Production Ready** - Includes restart policies and health checks
+- **Production Ready** - Includes restart policies and dashboard health endpoint
 
 ---
 
@@ -35,7 +35,7 @@ Everything runs in Docker containers - no need to install dependencies on your h
 ## Project Structure
 
 ```
-plm-electrumx/
+palladium-stack/
 ├── daemon/                          # Palladium binaries (YOU must add these)
 │   ├── palladiumd                   # Node daemon (required)
 │   ├── palladium-cli                # CLI tool (required)
@@ -57,7 +57,7 @@ plm-electrumx/
 └── docker-compose.yml               # Main orchestration file
 ```
 
-🔗 **Palladium Full Node:** [palladium-coin/palladiumcore](https://github.com/palladium-coin/palladiumcore)
+**Palladium Full Node:** [palladium-coin/palladiumcore](https://github.com/palladium-coin/palladiumcore)
 
 ---
 
@@ -118,8 +118,8 @@ Browser◄───────────────────────�
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/palladium-coin/plm-electrumx.git
-cd plm-electrumx
+git clone <your-repository-url>
+cd palladium-stack
 ```
 
 ---
@@ -166,8 +166,8 @@ nano .palladium/palladium.conf
 
 **Change these credentials:**
 ```conf
-rpcuser=your_secure_username     # ← Change this
-rpcpassword=your_secure_password # ← Use a strong password!
+rpcuser=your_username     # ← Change this
+rpcpassword=your_password # ← Use a strong password!
 ```
 
 Save and close (`Ctrl+X`, then `Y`, then `Enter`).
@@ -318,10 +318,11 @@ http://<your-public-ip>:8080
 The dashboard shows:
 - System resources (CPU, RAM, Disk)
 - Palladium node status (height, difficulty, connections, sync progress)
-- ElectrumX server stats (version, sessions, DB size, uptime, **server IP**, ports)
+- ElectrumX server stats (version, active servers, DB size, uptime, **server IP**, ports)
 - Mempool information (transactions, size, usage)
 - Recent blocks table
 - Network peers (click "Connections" to view detailed peer list)
+- Electrum active servers page (click "Active Servers")
 
 ---
 
@@ -343,9 +344,9 @@ The dashboard shows:
 
 **ElectrumX Server:**
 - Server Version
-- Active Sessions (concurrent connections)
 - Database Size
 - Uptime
+- Active Servers (clickable to dedicated server list)
 - **Server IP** (for client configuration)
 - TCP Port (50001)
 - SSL Port (50002)
@@ -378,6 +379,19 @@ The dashboard shows:
 
 **Auto-refresh:** Every 10 seconds
 
+### Electrum Active Servers Page (http://localhost:8080/electrum-servers)
+
+**Summary:**
+- Total Active Servers
+- TCP 50001 Reachable
+
+**Detailed Server List:**
+- Host
+- TCP Port
+- SSL Port
+
+**Auto-refresh:** Every 10 seconds
+
 ---
 
 ## Verify Installation
@@ -394,8 +408,8 @@ Should show all three containers "Up".
 
 ```bash
 docker exec palladium-node palladium-cli \
-  -rpcuser=your_username \
-  -rpcpassword=your_password \
+  -rpcuser=<your_username> \
+  -rpcpassword=<your_password> \
   getblockchaininfo
 ```
 
@@ -426,17 +440,21 @@ Key settings in `.palladium/palladium.conf`:
 
 | Setting | Value | Purpose |
 |---------|-------|---------|
-| `rpcuser` | `your_username` | RPC authentication |
-| `rpcpassword` | `your_password` | RPC authentication |
+| `rpcuser` | `<your_username>` | RPC authentication |
+| `rpcpassword` | `<your_password>` | RPC authentication |
 | `server=1` | Required | Enable RPC server |
 | `txindex=1` | Required | Index all transactions (ElectrumX needs this) |
 | `addressindex=1` | Recommended | Index addresses for fast queries |
 | `timestampindex=1` | Recommended | Index timestamps |
 | `spentindex=1` | Recommended | Index spent outputs |
 | `rpcbind=0.0.0.0` | Required | Allow Docker connections |
-| `rpcallowip=172.17.0.0/16` | Required | Allow Docker network |
+| `rpcallowip=10.0.0.0/8` | Recommended | Allow private RFC1918 networks |
+| `rpcallowip=172.16.0.0/12` | Recommended | Allow private RFC1918 networks |
+| `rpcallowip=192.168.0.0/16` | Recommended | Allow private RFC1918 networks |
 | `port=2333` | Default | P2P network port (mainnet) |
 | `rpcport=2332` | Default | RPC port (mainnet) |
+
+**Important:** current `docker-compose.yml` starts `palladiumd` with command-line `-rpcallowip=0.0.0.0/0`, which overrides `rpcallowip` values in `palladium.conf`. Keep this in mind for security hardening.
 
 **ZeroMQ Ports (optional):**
 - `28332` - Block hash notifications
@@ -740,8 +758,6 @@ Distributed under the **MIT** license. See `LICENSE` file for details.
 
 ## Support
 
-- **Issues:** [GitHub Issues](https://github.com/palladium-coin/plm-electrumx/issues)
-- **Palladium Community:** [Palladium Coin](https://github.com/palladium-coin)
 - **ElectrumX Documentation:** [Official Docs](https://electrumx.readthedocs.io/)
 
 ---
