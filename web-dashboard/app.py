@@ -11,6 +11,7 @@ import os
 import time
 import copy
 import threading
+import ssl
 from datetime import datetime
 import psutil
 import socket
@@ -64,7 +65,49 @@ def parse_addnode_hosts(conf_path='/palladium-config/palladium.conf'):
     return hosts
 
 
-def probe_electrum_server(host, port=50001, timeout=1.2):
+def parse_services_ports(services):
+    """Extract TCP/SSL ports from SERVICES string (e.g. tcp://0.0.0.0:50001,ssl://0.0.0.0:50002)."""
+    tcp_port = None
+    ssl_port = None
+    for item in services.split(','):
+        item = item.strip()
+        if item.startswith('tcp://') and ':' in item:
+            try:
+                tcp_port = int(item.rsplit(':', 1)[1])
+            except ValueError:
+                pass
+        if item.startswith('ssl://') and ':' in item:
+            try:
+                ssl_port = int(item.rsplit(':', 1)[1])
+            except ValueError:
+                pass
+    return tcp_port, ssl_port
+
+
+def get_electrumx_service_ports():
+    """
+    Resolve ElectrumX service ports dynamically.
+    Priority:
+    1) SERVICES env from electrumx container
+    2) local SERVICES env (if provided)
+    """
+    try:
+        import subprocess
+        result = subprocess.run(
+            ['docker', 'exec', 'electrumx-server', 'sh', '-c', 'printf "%s" "${SERVICES:-}"'],
+            capture_output=True,
+            text=True,
+            timeout=2
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return parse_services_ports(result.stdout.strip())
+    except Exception:
+        pass
+
+    return parse_services_ports(os.getenv('SERVICES', ''))
+
+
+def probe_electrum_server(host, port, timeout=2.0):
     """Check if an Electrum server is reachable and speaking protocol on host:port"""
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -76,11 +119,72 @@ def probe_electrum_server(host, port=50001, timeout=1.2):
             "method": "server.version",
             "params": ["palladium-dashboard", "1.4"]
         }
-        sock.send((json.dumps(request) + '\n').encode())
-        response = sock.recv(4096).decode()
+        sock.sendall((json.dumps(request) + '\n').encode())
+
+        data = b""
+        for _ in range(6):
+            chunk = sock.recv(4096)
+            if not chunk:
+                break
+            data += chunk
+            candidate = data.decode(errors='ignore')
+            candidate = candidate.split("\n", 1)[0].strip()
+            if candidate:
+                try:
+                    payload = json.loads(candidate)
+                    sock.close()
+                    return 'result' in payload
+                except Exception:
+                    pass
         sock.close()
-        data = json.loads(response)
-        if 'result' in data:
+        line = data.split(b"\n", 1)[0].decode(errors='ignore').strip() if data else ""
+        payload = json.loads(line) if line else {}
+        if 'result' in payload:
+            return True
+    except Exception:
+        return False
+    return False
+
+
+def probe_electrum_server_ssl(host, port, timeout=2.0):
+    """Check if an Electrum SSL server is reachable on host:port (self-signed allowed)."""
+    try:
+        raw_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        raw_sock.settimeout(timeout)
+        raw_sock.connect((host, port))
+
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        ssl_sock = context.wrap_socket(raw_sock, server_hostname=host)
+        ssl_sock.settimeout(timeout)
+
+        request = {
+            "jsonrpc": "2.0",
+            "id": 101,
+            "method": "server.version",
+            "params": ["palladium-dashboard", "1.4"]
+        }
+        ssl_sock.sendall((json.dumps(request) + '\n').encode())
+        data = b""
+        for _ in range(6):
+            chunk = ssl_sock.recv(4096)
+            if not chunk:
+                break
+            data += chunk
+            candidate = data.decode(errors='ignore')
+            candidate = candidate.split("\n", 1)[0].strip()
+            if candidate:
+                try:
+                    payload = json.loads(candidate)
+                    ssl_sock.close()
+                    return 'result' in payload
+                except Exception:
+                    pass
+        ssl_sock.close()
+        line = data.split(b"\n", 1)[0].decode(errors='ignore').strip() if data else ""
+        payload = json.loads(line) if line else {}
+        if 'result' in payload:
             return True
     except Exception:
         return False
@@ -89,10 +193,13 @@ def probe_electrum_server(host, port=50001, timeout=1.2):
 
 def is_electrumx_reachable(timeout=1.0):
     """Fast ElectrumX liveness check used by /api/health"""
+    tcp_port, _ = get_electrumx_service_ports()
+    if not tcp_port:
+        return False
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(timeout)
-        sock.connect((ELECTRUMX_RPC_HOST, 50001))
+        sock.connect((ELECTRUMX_RPC_HOST, tcp_port))
         request = {
             "jsonrpc": "2.0",
             "id": 999,
@@ -209,6 +316,8 @@ def get_electrumx_stats(include_addnode_probes=False):
         import subprocess
         from datetime import datetime
 
+        local_tcp_port, local_ssl_port = get_electrumx_service_ports()
+
         stats = {
             'server_version': 'Unknown',
             'protocol_min': '',
@@ -225,8 +334,8 @@ def get_electrumx_stats(include_addnode_probes=False):
             'subs': 0,
             'uptime': 0,
             'db_size': 0,
-            'tcp_port': 50001,
-            'ssl_port': 50002,
+            'tcp_port': str(local_tcp_port) if local_tcp_port else None,
+            'ssl_port': str(local_ssl_port) if local_ssl_port else None,
             'server_ip': 'Unknown'
         }
 
@@ -252,9 +361,11 @@ def get_electrumx_stats(include_addnode_probes=False):
 
         # Get server features via Electrum protocol
         try:
+            if not local_tcp_port:
+                raise RuntimeError("SERVICES tcp port not configured")
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(5)
-            sock.connect((ELECTRUMX_RPC_HOST, 50001))
+            sock.connect((ELECTRUMX_RPC_HOST, local_tcp_port))
 
             request = {
                 "jsonrpc": "2.0",
@@ -281,9 +392,11 @@ def get_electrumx_stats(include_addnode_probes=False):
 
         # Get peers discovered by ElectrumX
         try:
+            if not local_tcp_port:
+                raise RuntimeError("SERVICES tcp port not configured")
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(5)
-            sock.connect((ELECTRUMX_RPC_HOST, 50001))
+            sock.connect((ELECTRUMX_RPC_HOST, local_tcp_port))
 
             request = {
                 "jsonrpc": "2.0",
@@ -315,7 +428,9 @@ def get_electrumx_stats(include_addnode_probes=False):
                         peers.append({
                             'host': host,
                             'tcp_port': tcp_port,
-                            'ssl_port': ssl_port
+                            'ssl_port': ssl_port,
+                            'tcp_reachable': None,
+                            'ssl_reachable': None
                         })
 
                 stats['active_servers'] = peers
@@ -325,25 +440,35 @@ def get_electrumx_stats(include_addnode_probes=False):
 
         # Keep peers list without self for dashboard card count
         try:
-            merged = []
-            seen = set()
+            merged_by_host = {}
             self_host = (stats.get('server_ip') or '').strip()
             for peer in (stats.get('active_servers') or []):
                 host = (peer.get('host') or '').strip()
-                tcp_port = str(peer.get('tcp_port') or '50001')
+                tcp_port = str(peer.get('tcp_port')) if peer.get('tcp_port') else None
+                ssl_port = str(peer.get('ssl_port')) if peer.get('ssl_port') else None
                 if not host:
                     continue
                 if self_host and host == self_host:
                     continue
-                key = f"{host}:{tcp_port}"
-                if key in seen:
-                    continue
-                seen.add(key)
-                merged.append({
-                    'host': host,
-                    'tcp_port': tcp_port,
-                    'ssl_port': peer.get('ssl_port')
-                })
+                existing = merged_by_host.get(host)
+                if not existing:
+                    merged_by_host[host] = {
+                        'host': host,
+                        'tcp_port': tcp_port,
+                        'ssl_port': ssl_port,
+                        'tcp_reachable': peer.get('tcp_reachable'),
+                        'ssl_reachable': peer.get('ssl_reachable')
+                    }
+                else:
+                    if not existing.get('tcp_port') and tcp_port:
+                        existing['tcp_port'] = tcp_port
+                    if not existing.get('ssl_port') and ssl_port:
+                        existing['ssl_port'] = ssl_port
+                    if existing.get('tcp_reachable') is None and peer.get('tcp_reachable') is not None:
+                        existing['tcp_reachable'] = peer.get('tcp_reachable')
+                    if existing.get('ssl_reachable') is None and peer.get('ssl_reachable') is not None:
+                        existing['ssl_reachable'] = peer.get('ssl_reachable')
+            merged = list(merged_by_host.values())
             stats['active_servers'] = merged
             stats['active_servers_count'] = len(merged)
         except Exception as e:
@@ -355,32 +480,63 @@ def get_electrumx_stats(include_addnode_probes=False):
                 addnode_hosts = parse_addnode_hosts()
                 extra_servers = []
                 for host in addnode_hosts:
-                    if probe_electrum_server(host, 50001, timeout=0.5):
+                    tcp_ok = probe_electrum_server(host, local_tcp_port, timeout=2.0) if local_tcp_port else False
+                    ssl_ok = probe_electrum_server_ssl(host, local_ssl_port, timeout=2.0) if local_ssl_port else False
+                    if tcp_ok or ssl_ok:
                         extra_servers.append({
                             'host': host,
-                            'tcp_port': '50001',
-                            'ssl_port': None
+                            'tcp_port': str(local_tcp_port) if tcp_ok and local_tcp_port else None,
+                            'ssl_port': str(local_ssl_port) if ssl_ok and local_ssl_port else None,
+                            'tcp_reachable': tcp_ok,
+                            'ssl_reachable': ssl_ok
                         })
 
-                merged = []
-                seen = set()
+                merged_by_host = {}
                 self_host = (stats.get('server_ip') or '').strip()
                 for peer in (stats.get('active_servers') or []) + extra_servers:
                     host = (peer.get('host') or '').strip()
-                    tcp_port = str(peer.get('tcp_port') or '50001')
+                    tcp_port = str(peer.get('tcp_port')) if peer.get('tcp_port') else None
+                    ssl_port = str(peer.get('ssl_port')) if peer.get('ssl_port') else None
                     if not host:
                         continue
                     if self_host and host == self_host:
                         continue
-                    key = f"{host}:{tcp_port}"
-                    if key in seen:
+                    existing = merged_by_host.get(host)
+                    if not existing:
+                        merged_by_host[host] = {
+                            'host': host,
+                            'tcp_port': tcp_port,
+                            'ssl_port': ssl_port,
+                            'tcp_reachable': peer.get('tcp_reachable'),
+                            'ssl_reachable': peer.get('ssl_reachable')
+                        }
+                    else:
+                        if not existing.get('tcp_port') and tcp_port:
+                            existing['tcp_port'] = tcp_port
+                        if not existing.get('ssl_port') and ssl_port:
+                            existing['ssl_port'] = ssl_port
+                        if existing.get('tcp_reachable') is None and peer.get('tcp_reachable') is not None:
+                            existing['tcp_reachable'] = peer.get('tcp_reachable')
+                        if existing.get('ssl_reachable') is None and peer.get('ssl_reachable') is not None:
+                            existing['ssl_reachable'] = peer.get('ssl_reachable')
+                merged = list(merged_by_host.values())
+
+                # Probe merged list so summary can report both TCP and SSL reachability
+                for peer in merged:
+                    host = peer.get('host')
+                    if not host:
                         continue
-                    seen.add(key)
-                    merged.append({
-                        'host': host,
-                        'tcp_port': tcp_port,
-                        'ssl_port': peer.get('ssl_port')
-                    })
+                    peer_tcp_port = int(peer.get('tcp_port')) if str(peer.get('tcp_port', '')).isdigit() else local_tcp_port
+                    peer_ssl_port = int(peer.get('ssl_port')) if str(peer.get('ssl_port', '')).isdigit() else local_ssl_port
+
+                    if peer.get('tcp_reachable') is None and peer_tcp_port:
+                        peer['tcp_reachable'] = probe_electrum_server(host, peer_tcp_port, timeout=2.0)
+                    if peer.get('ssl_reachable') is None and peer_ssl_port:
+                        peer['ssl_reachable'] = probe_electrum_server_ssl(host, peer_ssl_port, timeout=2.0)
+                    if peer.get('tcp_reachable') is True and not peer.get('tcp_port') and peer_tcp_port:
+                        peer['tcp_port'] = str(peer_tcp_port)
+                    if peer.get('ssl_reachable') is True and not peer.get('ssl_port') and peer_ssl_port:
+                        peer['ssl_port'] = str(peer_ssl_port)
 
                 stats['active_servers'] = merged
                 stats['active_servers_count'] = len(merged)
@@ -439,9 +595,11 @@ def get_electrumx_stats(include_addnode_probes=False):
 
         # Count active connections (TCP sessions)
         try:
+            if not local_tcp_port:
+                raise RuntimeError("SERVICES tcp port not configured")
             result = subprocess.run(
                 ['docker', 'exec', 'electrumx-server', 'sh', '-c',
-                 'netstat -an 2>/dev/null | grep ":50001.*ESTABLISHED" | wc -l'],
+                 f'netstat -an 2>/dev/null | grep ":{local_tcp_port}.*ESTABLISHED" | wc -l'],
                 capture_output=True,
                 text=True,
                 timeout=2
@@ -558,12 +716,12 @@ def electrumx_stats():
     try:
         stats = get_electrumx_stats_cached(include_addnode_probes=False)
         if stats:
-            # If fast path reports no servers, reuse full servers cache if available.
-            if (stats.get('active_servers_count') or 0) == 0:
-                heavy_stats = get_electrumx_stats_cached(include_addnode_probes=True)
-                if heavy_stats and (heavy_stats.get('active_servers_count') or 0) > 0:
-                    stats['active_servers'] = heavy_stats.get('active_servers', [])
-                    stats['active_servers_count'] = heavy_stats.get('active_servers_count', 0)
+            # Keep dashboard card aligned with /api/electrumx/servers:
+            # always prefer the full discovery view for active servers.
+            heavy_stats = get_electrumx_stats_cached(include_addnode_probes=True)
+            if heavy_stats:
+                stats['active_servers'] = heavy_stats.get('active_servers', [])
+                stats['active_servers_count'] = heavy_stats.get('active_servers_count', 0)
 
             # Get additional info from logs if available
             try:

@@ -33,10 +33,6 @@
                             <div class="stat-label">Total Active Servers</div>
                             <div class="stat-value" id="totalServers">--</div>
                         </div>
-                        <div class="stat-item">
-                            <div class="stat-label">TCP 50001 Reachable</div>
-                            <div class="stat-value" id="tcpReachable">--</div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -54,10 +50,12 @@
                                 <th>Host</th>
                                 <th>TCP Port</th>
                                 <th>SSL Port</th>
+                                <th>TCP Reachable</th>
+                                <th>SSL Reachable</th>
                             </tr>
                         </thead>
                         <tbody id="electrumServersTable">
-                            <tr><td colspan="3" class="loading">Loading servers...</td></tr>
+                            <tr><td colspan="5" class="loading">Loading servers...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -70,6 +68,6 @@
         </footer>
     </div>
 
-    <script src="{{ url_for('static', filename='electrum_servers.js') }}?v=1"></script>
+    <script src="{{ url_for('static', filename='electrum_servers.js') }}?v=3"></script>
 </body>
 </html>

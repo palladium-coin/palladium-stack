@@ -217,10 +217,10 @@ async function updateElectrumXStats() {
             document.getElementById('serverIP').textContent = data.stats.server_ip || '--';
 
             // TCP Port
-            document.getElementById('tcpPort').textContent = data.stats.tcp_port || 50001;
+            document.getElementById('tcpPort').textContent = data.stats.tcp_port || '--';
 
             // SSL Port
-            document.getElementById('sslPort').textContent = data.stats.ssl_port || 50002;
+            document.getElementById('sslPort').textContent = data.stats.ssl_port || '--';
 
             // Active servers from peer discovery
             const activeServers = Array.isArray(data.stats.active_servers) ? data.stats.active_servers : [];
