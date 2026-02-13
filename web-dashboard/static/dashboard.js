@@ -205,10 +205,6 @@ async function updateElectrumXStats() {
             }
             document.getElementById('serverVersion').textContent = serverVersion;
 
-            // Active sessions
-            const sessions = typeof data.stats.sessions === 'number' ? data.stats.sessions : '--';
-            document.getElementById('activeSessions').textContent = sessions;
-
             // Database size
             const dbSize = data.stats.db_size > 0 ? formatBytes(data.stats.db_size) : '--';
             document.getElementById('dbSize').textContent = dbSize;
@@ -225,6 +221,10 @@ async function updateElectrumXStats() {
 
             // SSL Port
             document.getElementById('sslPort').textContent = data.stats.ssl_port || 50002;
+
+            // Active servers from peer discovery
+            const activeServers = Array.isArray(data.stats.active_servers) ? data.stats.active_servers : [];
+            document.getElementById('activeServersCount').textContent = data.stats.active_servers_count ?? activeServers.length;
         }
 
     } catch (error) {

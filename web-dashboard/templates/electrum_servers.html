@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Electrum Active Servers - Palladium Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=11">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <h1>
+                    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                    </svg>
+                    Electrum Active Servers
+                </h1>
+                <a href="/" class="back-button">
+                    <span>← Back to Dashboard</span>
+                </a>
+            </div>
+        </header>
+
+        <div class="dashboard-grid">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Discovery Summary</h2>
+                    <span class="card-icon">🌐</span>
+                </div>
+                <div class="card-content">
+                    <div class="stat-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">Total Active Servers</div>
+                            <div class="stat-value" id="totalServers">--</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">TCP 50001 Reachable</div>
+                            <div class="stat-value" id="tcpReachable">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card full-width">
+            <div class="card-header">
+                <h2>Other Active Servers</h2>
+                <span class="card-icon">⚡</span>
+            </div>
+            <div class="card-content">
+                <div class="table-container">
+                    <table class="blocks-table peers-table">
+                        <thead>
+                            <tr>
+                                <th>Host</th>
+                                <th>TCP Port</th>
+                                <th>SSL Port</th>
+                            </tr>
+                        </thead>
+                        <tbody id="electrumServersTable">
+                            <tr><td colspan="3" class="loading">Loading servers...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <p>Last updated: <span id="lastUpdate">--</span></p>
+            <p>Auto-refresh every 10 seconds</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='electrum_servers.js') }}?v=1"></script>
+</body>
+</html>

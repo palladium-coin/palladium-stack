@@ -242,6 +242,12 @@ body {
     word-break: break-word;
 }
 
+#activeServers {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+}
+
 /* Resource Monitoring */
 .resource-item {
     display: grid;
