@@ -57,8 +57,10 @@ services:
       SSL_KEYFILE: "/certs/server.key"
 
       DB_DIRECTORY: "/data"
-      PEER_DISCOVERY: "off"
-      PEER_ANNOUNCE: "false"
+      PEER_DISCOVERY: "on"
+      PEER_ANNOUNCE: "true"
+      # Set this to the server's public IP or hostname (required for peer discovery)
+      # REPORT_HOST: "your.public.ip.or.hostname"
       INITIAL_CONCURRENT: "2"
       COST_SOFT_LIMIT: "0"
       COST_HARD_LIMIT: "0"

@@ -30,6 +30,14 @@ class Palladium(Bitcoin):
     RPC_PORT = 2332
     PEER_DEFAULT_PORTS = {'t': '50001', 's': '50002'}
 
+    # === Seed peers for discovery ===
+    PEERS = [
+        '66.94.115.80 t',
+        '89.117.149.130 t',
+        '173.212.224.67 t',
+        '82.165.218.152 t',
+    ]
+
     # === Deserializer ===
     DESERIALIZER = lib_tx.DeserializerSegWit
 
