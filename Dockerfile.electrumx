@@ -1,5 +1,8 @@
 FROM lukechilds/electrumx
 
+# Install curl (needed by entrypoint for RPC calls and IP detection)
+RUN apk add --no-cache curl || apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+
 # Copy Palladium coin definition and patch ElectrumX
 COPY electrumx-patch/coins_plm.py /tmp/coins_plm.py
 

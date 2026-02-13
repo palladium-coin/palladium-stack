@@ -43,6 +43,22 @@ fi
 # Build DAEMON_URL with extracted credentials
 export DAEMON_URL="http://${RPC_USER}:${RPC_PASSWORD}@palladiumd:${RPC_PORT}/"
 
+# Auto-detect public IP and set REPORT_SERVICES for peer discovery
+if [ -z "$REPORT_SERVICES" ]; then
+    echo "REPORT_SERVICES not set, detecting public IP..."
+    for url in https://icanhazip.com https://ifconfig.me https://api.ipify.org; do
+        PUBLIC_IP=$(curl -sf --max-time 5 "$url" 2>/dev/null | tr -d '[:space:]')
+        if [ -n "$PUBLIC_IP" ]; then
+            export REPORT_SERVICES="tcp://${PUBLIC_IP}:50001,ssl://${PUBLIC_IP}:50002"
+            echo ">> Auto-detected REPORT_SERVICES: ${REPORT_SERVICES}"
+            break
+        fi
+    done
+    if [ -z "$REPORT_SERVICES" ]; then
+        echo ">> WARNING: Could not detect public IP. Peer discovery will not announce this server."
+    fi
+fi
+
 echo "=========================================="
 echo "ElectrumX Configuration"
 echo "=========================================="
@@ -51,6 +67,7 @@ echo "Network: ${NET}"
 echo "RPC User: ${RPC_USER}"
 echo "RPC Port: ${RPC_PORT}"
 echo "DAEMON_URL: http://${RPC_USER}:***@palladiumd:${RPC_PORT}/"
+echo "REPORT_SERVICES: ${REPORT_SERVICES:-not set}"
 echo "=========================================="
 
 # Update TX_COUNT / TX_COUNT_HEIGHT in coins.py from the live node
