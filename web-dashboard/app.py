@@ -19,6 +19,16 @@ import socket
 app = Flask(__name__)
 CORS(app)
 
+
+@app.after_request
+def disable_api_cache(response):
+    """Prevent stale API payloads from browser/proxy caches."""
+    if request.path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
+
 # Configuration
 PALLADIUM_RPC_HOST = os.getenv('PALLADIUM_RPC_HOST', 'palladiumd')
 PALLADIUM_RPC_PORT = int(os.getenv('PALLADIUM_RPC_PORT', '2332'))
@@ -191,6 +201,67 @@ def probe_electrum_server_ssl(host, port, timeout=2.0):
     return False
 
 
+def get_electrum_server_genesis(host, tcp_port=None, ssl_port=None, timeout=2.0):
+    """Return peer genesis_hash via server.features, trying TCP first then SSL."""
+    request = {
+        "jsonrpc": "2.0",
+        "id": 102,
+        "method": "server.features",
+        "params": []
+    }
+
+    if tcp_port:
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(timeout)
+            sock.connect((host, tcp_port))
+            sock.sendall((json.dumps(request) + '\n').encode())
+            data = b""
+            for _ in range(6):
+                chunk = sock.recv(4096)
+                if not chunk:
+                    break
+                data += chunk
+                candidate = data.decode(errors='ignore').split("\n", 1)[0].strip()
+                if candidate:
+                    payload = json.loads(candidate)
+                    genesis = (payload.get('result') or {}).get('genesis_hash')
+                    sock.close()
+                    return genesis
+            sock.close()
+        except Exception:
+            pass
+
+    if ssl_port:
+        try:
+            raw_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            raw_sock.settimeout(timeout)
+            raw_sock.connect((host, ssl_port))
+            context = ssl.create_default_context()
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            ssl_sock = context.wrap_socket(raw_sock, server_hostname=host)
+            ssl_sock.settimeout(timeout)
+            ssl_sock.sendall((json.dumps(request) + '\n').encode())
+            data = b""
+            for _ in range(6):
+                chunk = ssl_sock.recv(4096)
+                if not chunk:
+                    break
+                data += chunk
+                candidate = data.decode(errors='ignore').split("\n", 1)[0].strip()
+                if candidate:
+                    payload = json.loads(candidate)
+                    genesis = (payload.get('result') or {}).get('genesis_hash')
+                    ssl_sock.close()
+                    return genesis
+            ssl_sock.close()
+        except Exception:
+            pass
+
+    return None
+
+
 def is_electrumx_reachable(timeout=1.0):
     """Fast ElectrumX liveness check used by /api/health"""
     tcp_port, _ = get_electrumx_service_ports()
@@ -323,6 +394,7 @@ def get_electrumx_stats(include_addnode_probes=False):
             'protocol_min': '',
             'protocol_max': '',
             'genesis_hash': '',
+            'genesis_hash_full': '',
             'hash_function': '',
             'pruning': None,
             'sessions': 0,
@@ -381,14 +453,27 @@ def get_electrumx_stats(include_addnode_probes=False):
             data = json.loads(response)
             if 'result' in data:
                 result = data['result']
+                full_genesis = result.get('genesis_hash', '')
                 stats['server_version'] = result.get('server_version', 'Unknown')
                 stats['protocol_min'] = result.get('protocol_min', '')
                 stats['protocol_max'] = result.get('protocol_max', '')
-                stats['genesis_hash'] = result.get('genesis_hash', '')[:16] + '...'
+                stats['genesis_hash_full'] = full_genesis
+                stats['genesis_hash'] = (full_genesis[:16] + '...') if full_genesis else ''
                 stats['hash_function'] = result.get('hash_function', '')
                 stats['pruning'] = result.get('pruning')
         except Exception as e:
             print(f"ElectrumX protocol error: {e}")
+
+        # Fallback: derive expected network genesis from local Palladium node
+        # if Electrum server.features is temporarily unavailable.
+        if not stats.get('genesis_hash_full'):
+            try:
+                local_genesis = palladium_rpc_call('getblockhash', [0])
+                if isinstance(local_genesis, str) and local_genesis:
+                    stats['genesis_hash_full'] = local_genesis
+                    stats['genesis_hash'] = local_genesis[:16] + '...'
+            except Exception as e:
+                print(f"Local genesis fallback error: {e}")
 
         # Get peers discovered by ElectrumX
         try:
@@ -537,6 +622,28 @@ def get_electrumx_stats(include_addnode_probes=False):
                         peer['tcp_port'] = str(peer_tcp_port)
                     if peer.get('ssl_reachable') is True and not peer.get('ssl_port') and peer_ssl_port:
                         peer['ssl_port'] = str(peer_ssl_port)
+
+                # Keep only peers matching local Electrum network (same genesis hash).
+                expected_genesis = (stats.get('genesis_hash_full') or '').strip().lower()
+                if expected_genesis:
+                    filtered = []
+                    for peer in merged:
+                        host = peer.get('host')
+                        if not host:
+                            continue
+                        if peer.get('tcp_reachable') is not True and peer.get('ssl_reachable') is not True:
+                            continue
+                        peer_tcp_port = int(peer.get('tcp_port')) if str(peer.get('tcp_port', '')).isdigit() else None
+                        peer_ssl_port = int(peer.get('ssl_port')) if str(peer.get('ssl_port', '')).isdigit() else None
+                        peer_genesis = get_electrum_server_genesis(
+                            host,
+                            tcp_port=peer_tcp_port,
+                            ssl_port=peer_ssl_port,
+                            timeout=2.0
+                        )
+                        if peer_genesis and peer_genesis.strip().lower() == expected_genesis:
+                            filtered.append(peer)
+                    merged = filtered
 
                 stats['active_servers'] = merged
                 stats['active_servers_count'] = len(merged)
@@ -759,11 +866,6 @@ def electrumx_servers():
             return jsonify({'error': 'Cannot connect to ElectrumX'}), 500
 
         servers = stats.get('active_servers') or []
-        if len(servers) == 0:
-            # Fallback to fast discovery results if full probing is temporarily empty.
-            fast_stats = get_electrumx_stats_cached(include_addnode_probes=False)
-            if fast_stats:
-                servers = fast_stats.get('active_servers') or []
         return jsonify({
             'servers': servers,
             'total': len(servers),
