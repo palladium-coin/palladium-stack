@@ -37,3 +37,4 @@ __pycache__/
 /daemon/palladium-cli
 /daemon/palladium-tx
 /daemon/palladium-wallet
+/daemon/palladium-qt
