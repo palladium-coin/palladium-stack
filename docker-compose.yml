@@ -7,11 +7,11 @@ services:
     container_name: palladium-node
     restart: unless-stopped
     ports:
-      - "0.0.0.0:2332:2332"  # RPC port mainnet (accessible from network)
+      - "127.0.0.1:2332:2332"  # RPC port mainnet (host-local only)
       - "0.0.0.0:2333:2333"  # P2P port mainnet (accessible from network)
-      - "0.0.0.0:28332:28332"  # ZMQ hashblock (accessible from network)
-      - "0.0.0.0:28334:28334"  # ZMQ rawblock (accessible from network)
-      - "0.0.0.0:28335:28335"  # ZMQ rawtx (accessible from network)
+      - "127.0.0.1:28332:28332"  # ZMQ hashblock (host-local debug only)
+      - "127.0.0.1:28334:28334"  # ZMQ rawblock (host-local debug only)
+      - "127.0.0.1:28335:28335"  # ZMQ rawtx (host-local debug only)
       # For testnet, expose: 12332 (RPC) and 12333 (P2P)
 
     volumes:
@@ -22,8 +22,6 @@ services:
       palladiumd
       -conf=/root/.palladium/palladium.conf
       -datadir=/root/.palladium
-      -rpcbind=0.0.0.0
-      -rpcallowip=0.0.0.0/0
       -daemon=0
       -printtoconsole=1
 
