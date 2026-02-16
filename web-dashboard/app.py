@@ -12,12 +12,75 @@ import time
 import copy
 import threading
 import ssl
+import ipaddress
+import base64
+import hmac
 from datetime import datetime
 import psutil
 import socket
 
 app = Flask(__name__)
 CORS(app)
+
+TRUSTED_CLIENT_NETWORKS = (
+    ipaddress.ip_network('127.0.0.0/8'),
+    ipaddress.ip_network('10.0.0.0/8'),
+    ipaddress.ip_network('172.16.0.0/12'),
+    ipaddress.ip_network('192.168.0.0/16'),
+    ipaddress.ip_network('::1/128'),
+)
+
+
+def is_trusted_client_ip(ip_text):
+    """Allow direct access for localhost and private RFC1918 LAN clients."""
+    if not ip_text:
+        return False
+    try:
+        ip_obj = ipaddress.ip_address(ip_text.strip())
+        if getattr(ip_obj, 'ipv4_mapped', None):
+            ip_obj = ip_obj.ipv4_mapped
+        return any(ip_obj in network for network in TRUSTED_CLIENT_NETWORKS)
+    except ValueError:
+        return False
+
+
+def unauthorized_response():
+    response = jsonify({'error': 'Authentication required'})
+    response.status_code = 401
+    response.headers['WWW-Authenticate'] = 'Basic realm="Palladium Dashboard"'
+    return response
+
+
+@app.before_request
+def enforce_external_auth():
+    """
+    Localhost and LAN clients can access directly.
+    External clients must authenticate via Basic Auth credentials from env vars.
+    """
+    client_ip = request.remote_addr or ''
+    if is_trusted_client_ip(client_ip):
+        return None
+
+    expected_user = os.getenv('DASHBOARD_AUTH_USERNAME', '').strip()
+    expected_pass = os.getenv('DASHBOARD_AUTH_PASSWORD', '').strip()
+    if not expected_user or not expected_pass:
+        return jsonify({'error': 'Dashboard auth is not configured'}), 503
+
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Basic '):
+        return unauthorized_response()
+
+    try:
+        decoded = base64.b64decode(auth_header.split(' ', 1)[1]).decode('utf-8')
+        username, password = decoded.split(':', 1)
+    except Exception:
+        return unauthorized_response()
+
+    user_ok = hmac.compare_digest(username, expected_user)
+    pass_ok = hmac.compare_digest(password, expected_pass)
+    if not (user_ok and pass_ok):
+        return unauthorized_response()
+    return None
 
 
 @app.after_request

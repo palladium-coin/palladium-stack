@@ -242,6 +242,7 @@ For your ElectrumX server to be accessible from the internet, you **must** confi
 **Security Notes:**
 - Only forward port **8080** if you want the dashboard accessible from internet (not recommended without authentication)
 - Consider using a VPN for dashboard access instead
+- External dashboard clients (public IPs) require Basic Auth. Configure `DASHBOARD_AUTH_USERNAME` and `DASHBOARD_AUTH_PASSWORD` in `.env` (see `.env.example`).
 - Ports **50001** and **50002** need to be public for Electrum wallets to connect
 - Port **2333** is required for the node to sync with the Palladium network
 

@@ -154,8 +154,14 @@ curl http://localhost:8080/api/health | jq
 
 ## Security Note
 
-The dashboard is exposed on `0.0.0.0:8080` making it accessible from your network. If you're running this on a public server, consider:
+The dashboard is exposed on `0.0.0.0:8080`.
+Requests from localhost/LAN private ranges are allowed directly.
+Requests from public/external IPs require HTTP Basic Auth.
 
-1. Using a reverse proxy (nginx) with authentication
-2. Restricting access with firewall rules
-3. Using HTTPS with SSL certificates
+Set credentials with:
+
+```bash
+# .env (copy from .env.example)
+DASHBOARD_AUTH_USERNAME=admin
+DASHBOARD_AUTH_PASSWORD=change-me-now
+```
