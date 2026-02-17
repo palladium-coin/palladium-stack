@@ -8,12 +8,13 @@ Everything runs in Docker containers - no need to install dependencies on your h
 
 ## What You Get
 
-- **Palladium Full Node** (palladiumd) - Runs in Docker with full blockchain sync
+- **Palladium Full Node** (palladiumd) - Runs in Docker with full blockchain sync ([binary setup](daemon/README.md))
 - **ElectrumX Server** - Pre-configured for Palladium network with automatic indexing
-- **Web Dashboard** - Professional monitoring interface with real-time statistics, peer views, and Electrum server discovery
+- **Web Dashboard** - Professional monitoring interface with real-time statistics, peer views, and Electrum server discovery ([quick start](DASHBOARD.md) | [technical docs](web-dashboard/README.md))
 - **Automatic RPC Configuration** - ElectrumX reads credentials directly from palladium.conf
-- **Self-Signed SSL Certificates** - Secure connections ready out-of-the-box
-- **Production Ready** - Includes restart policies and dashboard health endpoint
+- **Self-Signed SSL Certificates** - Auto-generated on first startup, persisted in `./certs/`
+- **Public IP Auto-Detection** - Automatically configures REPORT_SERVICES and SSL certificate SAN
+- **Production Ready** - Includes restart policies, health endpoint, and Basic Auth for external dashboard access
 
 ---
 
@@ -40,7 +41,8 @@ palladium-stack/
 │   ├── palladiumd                   # Node daemon (required)
 │   ├── palladium-cli                # CLI tool (required)
 │   ├── palladium-tx                 # Transaction tool (optional)
-│   └── palladium-wallet             # Wallet tool (optional)
+│   ├── palladium-wallet             # Wallet tool (optional)
+│   └── README.md                    # Binary download instructions
 ├── .palladium/
 │   ├── palladium.conf               # Node configuration (edit this!)
 │   ├── blocks/                      # Blockchain blocks (auto-generated)
@@ -50,14 +52,21 @@ palladium-stack/
 │   ├── server.crt                   # Self-signed certificate
 │   └── server.key                   # Private key
 ├── electrumx-data/                  # ElectrumX database (auto-generated)
+├── electrumx-patch/
+│   └── coins_plm.py                 # Palladium coin definition for ElectrumX
 ├── web-dashboard/                   # Web monitoring dashboard
 │   ├── app.py                       # Flask backend API
 │   ├── templates/                   # HTML templates
-│   └── static/                      # CSS and JavaScript
+│   ├── static/                      # CSS and JavaScript
+│   └── README.md                    # Dashboard technical docs
 ├── Dockerfile.palladium-node        # Builds Palladium node container
 ├── Dockerfile.electrumx             # Builds ElectrumX server container
 ├── Dockerfile.dashboard             # Builds web dashboard container
-└── docker-compose.yml               # Main orchestration file
+├── docker-compose.yml               # Main orchestration file
+├── entrypoint.sh                    # ElectrumX startup (auto-config, SSL, IP detection)
+├── test-server.py                   # ElectrumX protocol test client
+├── .env.example                     # Environment variables template
+└── DASHBOARD.md                     # Dashboard quick start guide
 ```
 
 **Palladium Full Node:** [palladium-coin/palladiumcore](https://github.com/palladium-coin/palladiumcore)
@@ -129,37 +138,15 @@ cd palladium-stack
 
 ### Step 2: Get Palladium Binaries
 
-**IMPORTANT:** Download binaries matching your system architecture.
+**IMPORTANT:** Download binaries matching your system architecture in `daemon/`. 
 
-#### Option A: Download from Official Release
-
-1. Go to: [palladium-coin/palladiumcore/releases](https://github.com/palladium-coin/palladiumcore/releases)
-
-2. Download the correct version:
-   - **Linux x64**: `palladium-x.x.x-x86_64-linux-gnu.tar.gz`
-   - **Linux ARM64**: `palladium-x.x.x-aarch64-linux-gnu.tar.gz`
-
-3. Extract and copy binaries:
-   ```bash
-   tar -xzf palladium-*.tar.gz
-   mkdir -p daemon
-   cp palladium-*/bin/palladiumd daemon/
-   cp palladium-*/bin/palladium-cli daemon/
-   chmod +x daemon/*
-   ```
-
-#### Verify Installation
-
-```bash
-ls -lh daemon/
-# Should show: palladiumd, palladium-cli (both executable)
-```
+See [daemon/README.md](daemon/README.md) for detailed instructions.
 
 ---
 
 ### Step 3: Configure Network and Router
 
-#### A. Configure RPC Credentials
+#### 3.1 Configure RPC Credentials
 
 Open the configuration file:
 
@@ -175,7 +162,7 @@ rpcpassword=your_password # ← Use a strong password!
 
 Save and close (`Ctrl+X`, then `Y`, then `Enter`).
 
-#### B. Router Port Forwarding (Required for Public Access)
+#### 3.2 Router Port Forwarding (Required for Public Access)
 
 For your ElectrumX server to be accessible from the internet, you **must** configure port forwarding on your router.
 
@@ -248,6 +235,25 @@ For your ElectrumX server to be accessible from the internet, you **must** confi
 - External dashboard clients (public IPs) require Basic Auth. Configure `DASHBOARD_AUTH_USERNAME` and `DASHBOARD_AUTH_PASSWORD` in `.env` (see `.env.example`).
 - Ports **50001** and **50002** need to be public for Electrum wallets to connect
 - Port **2333** is required for the node to sync with the Palladium network
+
+---
+
+#### 3.3: (Optional) Configure Dashboard Authentication
+
+If you plan to expose the dashboard to the internet (port 8080), configure Basic Auth credentials:
+
+```bash
+cp .env.example .env
+nano .env
+```
+
+Set strong credentials:
+```bash
+DASHBOARD_AUTH_USERNAME=admin
+DASHBOARD_AUTH_PASSWORD=a-strong-random-password
+```
+
+LAN clients (private IPs) can access the dashboard without authentication. External clients (public IPs) will be prompted for these credentials automatically.
 
 ---
 
@@ -332,6 +338,8 @@ The dashboard shows:
 
 ## Web Dashboard Features
 
+See also: [DASHBOARD.md](DASHBOARD.md) for quick start | [web-dashboard/README.md](web-dashboard/README.md) for technical details
+
 ### Main Dashboard (http://localhost:8080)
 
 **System Monitoring:**
@@ -393,6 +401,10 @@ The dashboard shows:
 - Host
 - TCP Port
 - SSL Port
+- TCP Reachable (Yes/No)
+- SSL Reachable (Yes/No)
+
+Servers are filtered by genesis hash to show only peers on the same network (mainnet or testnet).
 
 **Auto-refresh:** Every 10 seconds
 
@@ -432,6 +444,25 @@ curl http://<your-public-ip>:8080
 
 # Test ElectrumX (with Python)
 python test-server.py <your-public-ip>:50002
+```
+
+### REST API Endpoints
+
+The dashboard exposes a REST API for programmatic access:
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/health` | Service health check (palladium + electrumx status) |
+| `GET /api/system/resources` | CPU, memory, and disk usage |
+| `GET /api/palladium/info` | Node info (blockchain, network, mining, mempool) |
+| `GET /api/palladium/peers` | Detailed peer list with traffic stats |
+| `GET /api/palladium/blocks/recent` | Last 10 blocks |
+| `GET /api/electrumx/stats` | ElectrumX version, uptime, DB size, active servers |
+| `GET /api/electrumx/servers` | Discovered ElectrumX peers with reachability |
+
+```bash
+# Example
+curl http://localhost:8080/api/health | jq
 ```
 
 ---
@@ -476,10 +507,12 @@ environment:
   # RPC credentials automatically read from palladium.conf
 ```
 
-**Automatic Configuration:**
-- ElectrumX reads RPC credentials from mounted `palladium.conf`
-- No need to manually configure `DAEMON_URL`
-- Single source of truth for credentials
+**Automatic Configuration (via `entrypoint.sh`):**
+- **RPC credentials**: Read automatically from mounted `palladium.conf` — no need to configure `DAEMON_URL`
+- **Public IP detection**: Discovers your public IP and sets `REPORT_SERVICES` for peer announcement
+- **SSL certificates**: Auto-generated on first startup in `./certs/` with SAN including localhost and public IP (see [Security > SSL Certificates](#production-deployment))
+- **TX stats patching**: Queries the live node for `TX_COUNT` / `TX_COUNT_HEIGHT` and patches the ElectrumX coin definition at startup
+- Single source of truth for credentials across all services
 
 ---
 
@@ -686,9 +719,14 @@ docker compose build --no-cache
    - To use your own certificates (e.g. Let's Encrypt), place `server.crt` and `server.key` in `./certs/` before starting
 
 4. **Dashboard Access:**
-   - Consider adding authentication
-   - Use VPN for remote access
-   - Or restrict to local network only
+   - LAN clients (RFC1918 private IPs) can access without authentication
+   - External clients (public IPs) require HTTP Basic Auth automatically
+   - Configure credentials in `.env` (copy from `.env.example`):
+     ```bash
+     DASHBOARD_AUTH_USERNAME=admin
+     DASHBOARD_AUTH_PASSWORD=a-strong-random-password
+     ```
+   - Consider using a VPN instead of exposing port 8080 publicly
 
 5. **Regular Updates:**
    ```bash

@@ -4,9 +4,7 @@ This directory must contain the pre-compiled Palladium Core binaries used by the
 
 ## Download
 
-Download the latest release from the official repository:
-
-**https://github.com/palladium-coin/palladiumcore/releases**
+Download from the official release repository: **https://github.com/palladium-coin/palladiumcore/releases/latest**
 
 ## Architecture
 
@@ -15,8 +13,8 @@ Choose the correct archive for your platform:
 
 | Host Architecture | Archive to download     | Common hardware                     |
 |-------------------|-------------------------|-------------------------------------|
-| `x86_64`          | `x86_64-linux-gnu.tar.gz`  | Standard PCs, most VPS/cloud servers |
-| `aarch64`         | `aarch64-linux-gnu.tar.gz` | Single-board computers (Raspberry Pi 4/5, Orange Pi, etc.) |
+| `x86_64`          | `palladium-linux-x86_64.tar.gz`  | Standard PCs, most VPS/cloud servers |
+| `aarch64`         | `palladium-linux-aarch64.tar.gz` | Single-board computers (Raspberry Pi 4/5, Orange Pi, etc.) |
 
 To check your host architecture:
 
@@ -38,14 +36,28 @@ daemon/
 
 ## Quick setup
 
-```bash
-# Example for aarch64 (Raspberry Pi)
-tar xzf palladiumcore-*-aarch64-linux-gnu.tar.gz
-cp palladiumcore-*/bin/palladium{d,-cli,-tx,-wallet} daemon/
+### Example for x86_64 (VPS/PC)
 
-# Example for x86_64 (VPS/PC)
-tar xzf palladiumcore-*-x86_64-linux-gnu.tar.gz
-cp palladiumcore-*/bin/palladium{d,-cli,-tx,-wallet} daemon/
+```bash
+cd daemon
+wget https://github.com/palladium-coin/palladiumcore/releases/latest/download/palladium-linux-x86_64.tar.gz
+tar -xzf palladium-linux-x86_64.tar.gz
+cd linux-x86_64
+mv palladium* ..
+cd ..
+rm -rf linux-x86_64/ && rm palladium-linux-x86_64.tar.gz
+```
+
+### Example for aarch64 (Raspberry Pi)
+
+```bash
+cd daemon
+wget https://github.com/palladium-coin/palladiumcore/releases/latest/download/palladium-linux-aarch64.tar.gz
+tar -xzf palladium-linux-aarch64.tar.gz
+cd linux-aarch64
+mv palladium* ..
+cd ..
+rm -rf linux-aarch64/ && rm palladium-linux-aarch64.tar.gz
 ```
 
 After placing the binaries, rebuild the node image:
