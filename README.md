@@ -46,6 +46,9 @@ palladium-stack/
 │   ├── blocks/                      # Blockchain blocks (auto-generated)
 │   ├── chainstate/                  # Blockchain state (auto-generated)
 │   └── ...                          # Other runtime data (auto-generated)
+├── certs/                           # SSL certificates (auto-generated on first run)
+│   ├── server.crt                   # Self-signed certificate
+│   └── server.key                   # Private key
 ├── electrumx-data/                  # ElectrumX database (auto-generated)
 ├── web-dashboard/                   # Web monitoring dashboard
 │   ├── app.py                       # Flask backend API
@@ -271,7 +274,7 @@ docker compose up -d
 **What happens:**
 1. Builds three Docker images: `palladium-node`, `electrumx-server`, and `palladium-dashboard`
 2. Starts Palladium node first
-3. Starts ElectrumX (waits for node to be ready)
+3. Starts ElectrumX (waits for node to be ready, auto-generates SSL certificates in `./certs/` if not present)
 4. Starts Web Dashboard (connects to both services)
 
 **First build takes 5-10 minutes.**
@@ -454,8 +457,6 @@ Key settings in `.palladium/palladium.conf`:
 | `rpcallowip=192.168.0.0/16` | Recommended | Allow private RFC1918 networks |
 | `port=2333` | Default | P2P network port (mainnet) |
 | `rpcport=2332` | Default | RPC port (mainnet) |
-
-**Important:** current `docker-compose.yml` starts `palladiumd` with command-line `-rpcallowip=0.0.0.0/0`, which overrides `rpcallowip` values in `palladium.conf`. Keep this in mind for security hardening.
 
 **ZeroMQ Ports (optional):**
 - `28332` - Block hash notifications
@@ -680,8 +681,9 @@ docker compose build --no-cache
    ```
 
 3. **SSL Certificates:**
-   - Default uses self-signed certificates
-   - For production, use valid SSL certificates (Let's Encrypt)
+   - Self-signed certificates are auto-generated on first startup in `./certs/`
+   - The certificate includes localhost and the auto-detected public IP in its SAN
+   - To use your own certificates (e.g. Let's Encrypt), place `server.crt` and `server.key` in `./certs/` before starting
 
 4. **Dashboard Access:**
    - Consider adding authentication
@@ -744,7 +746,7 @@ environment:
 
 ## Notes
 
-* **Data Persistence:** All data stored in `./.palladium/` and `./electrumx-data/`
+* **Data Persistence:** All data stored in `./.palladium/`, `./electrumx-data/`, and `./certs/`
 * **Backup:** Regularly backup `.palladium/wallet.dat` if you store funds
 * **Network Switch:** Always clear ElectrumX database when switching networks
 * **Updates:** Check for Palladium Core updates regularly

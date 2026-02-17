@@ -1,3 +1,6 @@
+# SSL certificates (auto-generated or user-provided)
+/certs/
+
 # ElectrumX server data
 /electrumx-data/
 

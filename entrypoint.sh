@@ -70,6 +70,61 @@ echo "DAEMON_URL: http://${RPC_USER}:***@palladiumd:${RPC_PORT}/"
 echo "REPORT_SERVICES: ${REPORT_SERVICES:-not set}"
 echo "=========================================="
 
+# ── SSL certificate generation (skip if certs already exist) ──
+if [ ! -f /certs/server.crt ] || [ ! -f /certs/server.key ]; then
+    echo "SSL certificates not found, generating self-signed certificate..."
+
+    # Collect SAN entries
+    SAN="DNS.1 = localhost"
+    SAN_IDX=1
+    IP_IDX=1
+    SAN="${SAN}\nIP.${IP_IDX} = 127.0.0.1"
+
+    # Try to detect public IP for SAN
+    for url in https://icanhazip.com https://ifconfig.me https://api.ipify.org; do
+        DETECTED_IP=$(curl -sf --max-time 5 "$url" 2>/dev/null | tr -d '[:space:]')
+        if [ -n "$DETECTED_IP" ]; then
+            IP_IDX=$((IP_IDX + 1))
+            SAN="${SAN}\nIP.${IP_IDX} = ${DETECTED_IP}"
+            echo ">> Including public IP in certificate SAN: ${DETECTED_IP}"
+            break
+        fi
+    done
+
+    cat >/tmp/openssl.cnf <<SSLEOF
+[req]
+distinguished_name = dn
+x509_extensions = v3_req
+prompt = no
+
+[dn]
+C  = IT
+ST = -
+L  = -
+O  = PalladiumStack
+CN = localhost
+
+[v3_req]
+keyUsage         = keyEncipherment, dataEncipherment, digitalSignature
+extendedKeyUsage = serverAuth
+subjectAltName   = @alt_names
+
+[alt_names]
+$(echo -e "$SAN")
+SSLEOF
+
+    openssl req -x509 -nodes -newkey rsa:4096 -days 3650 \
+        -keyout /certs/server.key -out /certs/server.crt \
+        -config /tmp/openssl.cnf 2>/dev/null
+
+    chmod 600 /certs/server.key
+    chmod 644 /certs/server.crt
+    rm -f /tmp/openssl.cnf
+    echo ">> SSL certificate generated successfully"
+else
+    echo ">> Using existing SSL certificates from /certs/"
+fi
+
 # Update TX_COUNT / TX_COUNT_HEIGHT in coins.py from the live node
 echo "Fetching chain tx stats from palladiumd..."
 TX_STATS=$(curl -sf --user "${RPC_USER}:${RPC_PASSWORD}" \
