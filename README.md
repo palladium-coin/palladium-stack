@@ -130,7 +130,7 @@ Browser◄───────────────────────�
 ### Step 1: Clone the Repository
 
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/palladium-coin/palladium-stack.git
 cd palladium-stack
 ```
 
@@ -233,6 +233,7 @@ For your ElectrumX server to be accessible from the internet, you **must** confi
 - Only forward port **8080** if you want the dashboard accessible from internet (not recommended without authentication)
 - Consider using a VPN for dashboard access instead
 - External dashboard clients (public IPs) require Basic Auth. Configure `DASHBOARD_AUTH_USERNAME` and `DASHBOARD_AUTH_PASSWORD` in `.env` (see `.env.example`).
+- External API calls (`/api/*`) from public/external IPs require `API_KEY` via `X-API-Key` header (or `Authorization: Bearer`).
 - Ports **50001** and **50002** need to be public for Electrum wallets to connect
 - Port **2333** is required for the node to sync with the Palladium network
 
@@ -243,7 +244,13 @@ For your ElectrumX server to be accessible from the internet, you **must** confi
 If you plan to expose the dashboard to the internet (port 8080), configure Basic Auth credentials:
 
 ```bash
+# 1) Generate a secure API key first
+./generate-api-key.sh
+
+# 2) Create your env file
 cp .env.example .env
+
+# 3) Paste the generated API key and set username/password
 nano .env
 ```
 
@@ -251,9 +258,10 @@ Set strong credentials:
 ```bash
 DASHBOARD_AUTH_USERNAME=admin
 DASHBOARD_AUTH_PASSWORD=a-strong-random-password
+API_KEY=a-long-random-api-key
 ```
 
-LAN clients (private IPs) can access the dashboard without authentication. External clients (public IPs) will be prompted for these credentials automatically.
+LAN clients (private IPs) can access the dashboard without authentication. External clients (public IPs) use Basic Auth for dashboard pages, while `/api/*` requests require `API_KEY`.
 
 ---
 
@@ -446,6 +454,64 @@ curl http://<your-public-ip>:8080
 python test-server.py <your-public-ip>:50002
 ```
 
+---
+
+### API Test Suite (`test_api.py`)
+
+`test_api.py` is a self-contained pytest suite that verifies the dashboard API without needing a running Palladium node or ElectrumX server (all backend calls are mocked). It also uses the `API_KEY` from your `.env` file to test real authentication flows.
+
+**Prerequisites:**
+
+```bash
+pip install pytest flask flask-cors requests psutil python-dateutil
+```
+
+**Run all tests:**
+
+```bash
+python3 -m pytest test_api.py -v
+```
+
+**What is tested:**
+
+| Group | Tests |
+|-------|-------|
+| `TestApiKeyAuth` | No key → 401; valid `X-API-Key` header passes; valid `Bearer` token passes; wrong key → 401; trusted LAN IP never gets 401; all 11 `/api/*` routes block anonymous external requests |
+| `TestApiEndpoints` | JSON structure and key fields for every endpoint: `/api/health`, `/api/palladium/info`, `block-height`, `network-hashrate`, `difficulty`, `peers`, `blocks/recent`, `/api/electrumx/stats`, `electrumx/servers`, `/api/system/resources` |
+| `TestCacheHeaders` | Every `/api/*` response carries `Cache-Control: no-store, no-cache` and `Pragma: no-cache` |
+
+**How authentication tests work:**
+
+- Tests that require `API_KEY` are automatically **skipped** (`pytest.mark.skipif`) if `.env` is missing or the key is still the default placeholder.
+- The test client simulates an **external IP** (`8.8.8.8`) to trigger the auth enforcement logic, and a **trusted IP** (`127.0.0.1`) for endpoint structure tests.
+
+**Run only a specific group:**
+
+```bash
+# Only auth tests
+python3 -m pytest test_api.py::TestApiKeyAuth -v
+
+# Only endpoint structure tests
+python3 -m pytest test_api.py::TestApiEndpoints -v
+
+# Only cache header tests
+python3 -m pytest test_api.py::TestCacheHeaders -v
+```
+
+**Expected output (all passing):**
+
+```
+test_api.py::TestApiKeyAuth::test_no_key_returns_401            PASSED
+test_api.py::TestApiKeyAuth::test_valid_xapikey_header_passes   PASSED
+test_api.py::TestApiKeyAuth::test_valid_bearer_token_passes     PASSED
+test_api.py::TestApiKeyAuth::test_wrong_key_returns_401         PASSED
+test_api.py::TestApiKeyAuth::test_trusted_ip_needs_no_auth      PASSED
+test_api.py::TestApiKeyAuth::test_all_api_routes_respect_auth   PASSED
+test_api.py::TestApiEndpoints::test_health                      PASSED
+...
+19 passed in ~3s
+```
+
 ### REST API Endpoints
 
 The dashboard exposes a REST API for programmatic access:
@@ -455,14 +521,73 @@ The dashboard exposes a REST API for programmatic access:
 | `GET /api/health` | Service health check (palladium + electrumx status) |
 | `GET /api/system/resources` | CPU, memory, and disk usage |
 | `GET /api/palladium/info` | Node info (blockchain, network, mining, mempool) |
+| `GET /api/palladium/block-height` | Current block height |
+| `GET /api/palladium/network-hashrate` | Current network hashrate (H/s) |
+| `GET /api/palladium/difficulty` | Current network difficulty |
 | `GET /api/palladium/peers` | Detailed peer list with traffic stats |
 | `GET /api/palladium/blocks/recent` | Last 10 blocks |
 | `GET /api/electrumx/stats` | ElectrumX version, uptime, DB size, active servers |
 | `GET /api/electrumx/servers` | Discovered ElectrumX peers with reachability |
 
+**How to call the API**
+
+1. Set your base URL:
 ```bash
-# Example
-curl http://localhost:8080/api/health | jq
+# Local host
+BASE_URL="http://localhost:8080"
+
+# LAN
+# BASE_URL="http://<server-lan-ip>:8080"
+
+# Internet/public
+# BASE_URL="http://<your-public-ip>:8080"
+```
+
+2. Choose authentication mode:
+- Local/LAN private IP clients: no API key required.
+- Public/external IP clients: `API_KEY` required for `/api/*`.
+
+3. Call endpoints with `curl`:
+```bash
+# Health
+curl "$BASE_URL/api/health" | jq
+
+# System resources
+curl "$BASE_URL/api/system/resources" | jq
+
+# Palladium info
+curl "$BASE_URL/api/palladium/info" | jq
+
+# Block height
+curl "$BASE_URL/api/palladium/block-height" | jq
+
+# Network hashrate
+curl "$BASE_URL/api/palladium/network-hashrate" | jq
+
+# Difficulty
+curl "$BASE_URL/api/palladium/difficulty" | jq
+
+# ElectrumX stats
+curl "$BASE_URL/api/electrumx/stats" | jq
+```
+
+4. External/public calls with API key:
+```bash
+# Header: X-API-Key
+curl -H "X-API-Key: <your-api-key>" "$BASE_URL/api/health" | jq
+
+# Or Bearer token
+curl -H "Authorization: Bearer <your-api-key>" "$BASE_URL/api/health" | jq
+```
+
+5. Troubleshooting:
+- `401 {"error":"Valid API key required"}`: missing/invalid API key.
+- `503 {"error":"API key is not configured"}`: set `API_KEY` in `.env` and restart `web-dashboard`.
+- Connection refused/timeout: check firewall, router port forwarding, and `docker compose ps`.
+
+```bash
+# After updating .env
+docker compose up -d --force-recreate web-dashboard
 ```
 
 ---
@@ -721,10 +846,18 @@ docker compose build --no-cache
 4. **Dashboard Access:**
    - LAN clients (RFC1918 private IPs) can access without authentication
    - External clients (public IPs) require HTTP Basic Auth automatically
-   - Configure credentials in `.env` (copy from `.env.example`):
+   - External API clients must provide `API_KEY` for `/api/*` requests
+   - Recommended flow: generate API key first, then create `.env`:
+     ```bash
+     ./generate-api-key.sh
+     cp .env.example .env
+     nano .env
+     ```
+   - Configure credentials in `.env`:
      ```bash
      DASHBOARD_AUTH_USERNAME=admin
      DASHBOARD_AUTH_PASSWORD=a-strong-random-password
+     API_KEY=a-long-random-api-key
      ```
    - Consider using a VPN instead of exposing port 8080 publicly
 
