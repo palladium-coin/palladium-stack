@@ -1,5 +1,15 @@
 // Dashboard JavaScript
 
+// API fetch helper with optional API key injected from template
+async function apiFetch(url, options = {}) {
+    const apiKey = (window.DASHBOARD_API_KEY || "").trim();
+    const headers = { ...(options.headers || {}) };
+    if (apiKey) {
+        headers["X-API-Key"] = apiKey;
+    }
+    return fetch(url, { ...options, headers });
+}
+
 // Format numbers
 function formatNumber(num) {
     if (num >= 1000000000) return (num / 1000000000).toFixed(2) + 'B';
@@ -14,6 +24,27 @@ function formatDifficulty(num) {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + ' M';
     if (num >= 1000) return (num / 1000).toFixed(1) + ' K';
     return num.toFixed(1);
+}
+
+// Format hashrate
+function formatHashrate(hps) {
+    const n = Number(hps);
+    if (!Number.isFinite(n) || n <= 0) return "--";
+    const units = ["H/s", "KH/s", "MH/s", "GH/s", "TH/s", "PH/s"];
+    let value = n;
+    let i = 0;
+    while (value >= 1000 && i < units.length - 1) {
+        value /= 1000;
+        i += 1;
+    }
+    return value.toFixed(2) + " " + units[i];
+}
+
+// Format coin amount
+function formatCoinAmount(amount) {
+    const n = Number(amount);
+    if (!Number.isFinite(n)) return "--";
+    return n.toFixed(2);
 }
 
 // Format block height (always full integer with thousands separator)
@@ -65,7 +96,7 @@ function updateHealthStatus(data) {
 // Update system resources
 async function updateSystemResources() {
     try {
-        const response = await fetch('/api/system/resources');
+        const response = await apiFetch('/api/system/resources');
         const data = await response.json();
 
         if (data.error) {
@@ -96,7 +127,7 @@ async function updateSystemResources() {
 // Update Palladium info
 async function updatePalladiumInfo() {
     try {
-        const response = await fetch('/api/palladium/info');
+        const response = await apiFetch('/api/palladium/info');
         const data = await response.json();
 
         if (data.error) {
@@ -143,6 +174,13 @@ async function updatePalladiumInfo() {
             }
         }
 
+        // Update network hashrate
+        const hashrateResponse = await apiFetch("/api/palladium/network-hashrate");
+        const hashrateData = await hashrateResponse.json();
+        if (!hashrateData.error) {
+            document.getElementById("networkHashrate").textContent = formatHashrate(hashrateData.network_hashrate);
+        }
+
     } catch (error) {
         console.error('Error fetching Palladium info:', error);
     }
@@ -151,7 +189,7 @@ async function updatePalladiumInfo() {
 // Update recent blocks
 async function updateRecentBlocks() {
     try {
-        const response = await fetch('/api/palladium/blocks/recent');
+        const response = await apiFetch('/api/palladium/blocks/recent');
         const data = await response.json();
 
         if (data.error) {
@@ -188,7 +226,7 @@ async function updateRecentBlocks() {
 // Update ElectrumX stats
 async function updateElectrumXStats() {
     try {
-        const response = await fetch('/api/electrumx/stats');
+        const response = await apiFetch('/api/electrumx/stats');
         const data = await response.json();
 
         if (data.error) {
@@ -235,7 +273,7 @@ async function updateElectrumXStats() {
 // Update health check
 async function updateHealth() {
     try {
-        const response = await fetch('/api/health');
+        const response = await apiFetch('/api/health');
         const data = await response.json();
         updateHealthStatus(data);
     } catch (error) {
@@ -261,8 +299,25 @@ async function updateAll() {
     ]);
 }
 
+// Tab navigation
+function initTabs() {
+    const buttons = document.querySelectorAll('.tab-btn');
+    const panels  = document.querySelectorAll('.tab-panel');
+
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            buttons.forEach(b => b.classList.remove('active'));
+            panels.forEach(p => p.classList.add('tab-panel--hidden'));
+            btn.classList.add('active');
+            document.getElementById('tab-' + btn.dataset.tab).classList.remove('tab-panel--hidden');
+        });
+    });
+}
+
 // Initialize dashboard
 document.addEventListener('DOMContentLoaded', async () => {
+    initTabs();
+
     // Initial update
     await updateAll();
 

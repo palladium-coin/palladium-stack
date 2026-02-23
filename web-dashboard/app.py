@@ -51,15 +51,51 @@ def unauthorized_response():
     return response
 
 
+def api_unauthorized_response():
+    response = jsonify({'error': 'Valid API key required'})
+    response.status_code = 401
+    return response
+
+
+def has_valid_api_key():
+    """
+    Validate API key from `X-API-Key` or `Authorization: Bearer <key>`.
+    Returns False when API_KEY is not configured.
+    """
+    expected_api_key = os.getenv('API_KEY', '').strip()
+    if not expected_api_key:
+        return False
+
+    api_key = request.headers.get('X-API-Key', '').strip()
+    if api_key:
+        return hmac.compare_digest(api_key, expected_api_key)
+
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        bearer_token = auth_header.split(' ', 1)[1].strip()
+        if bearer_token:
+            return hmac.compare_digest(bearer_token, expected_api_key)
+    return False
+
+
 @app.before_request
 def enforce_external_auth():
     """
     Localhost and LAN clients can access directly.
-    External clients must authenticate via Basic Auth credentials from env vars.
+    External clients:
+    - For API routes: must authenticate via API key.
+    - For dashboard routes: must authenticate via Basic Auth.
     """
     client_ip = request.remote_addr or ''
     if is_trusted_client_ip(client_ip):
         return None
+
+    if request.path.startswith('/api/'):
+        if not os.getenv('API_KEY', '').strip():
+            return jsonify({'error': 'API key is not configured'}), 503
+        if has_valid_api_key():
+            return None
+        return api_unauthorized_response()
 
     expected_user = os.getenv('DASHBOARD_AUTH_USERNAME', '').strip()
     expected_pass = os.getenv('DASHBOARD_AUTH_PASSWORD', '').strip()
@@ -788,7 +824,7 @@ def get_electrumx_stats(include_addnode_probes=False):
 @app.route('/')
 def index():
     """Serve main dashboard page"""
-    return render_template('index.html')
+    return render_template('index.html', api_key=os.getenv('API_KEY', '').strip())
 
 @app.route('/peers')
 def peers():
@@ -822,6 +858,87 @@ def palladium_info():
         return jsonify(data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/palladium/block-height')
+def palladium_block_height():
+    """Get current blockchain height."""
+    try:
+        height = palladium_rpc_call('getblockcount')
+        if height is None:
+            blockchain_info = palladium_rpc_call('getblockchaininfo') or {}
+            height = blockchain_info.get('blocks')
+        if height is None:
+            return jsonify({'error': 'Cannot get block height'}), 500
+
+        return jsonify({
+            'block_height': int(height),
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/palladium/network-hashrate')
+def palladium_network_hashrate():
+    """Get network hashrate (hashes per second)."""
+    try:
+        hashrate = palladium_rpc_call('getnetworkhashps')
+        if hashrate is None:
+            mining_info = palladium_rpc_call('getmininginfo') or {}
+            hashrate = mining_info.get('networkhashps')
+        if hashrate is None:
+            return jsonify({'error': 'Cannot get network hashrate'}), 500
+
+        return jsonify({
+            'network_hashrate': float(hashrate),
+            'unit': 'H/s',
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/palladium/difficulty')
+def palladium_difficulty():
+    """Get current PoW network difficulty."""
+    try:
+        difficulty = palladium_rpc_call('getdifficulty')
+        if difficulty is None:
+            blockchain_info = palladium_rpc_call('getblockchaininfo') or {}
+            difficulty = blockchain_info.get('difficulty')
+        if difficulty is None:
+            mining_info = palladium_rpc_call('getmininginfo') or {}
+            difficulty = mining_info.get('difficulty')
+        if difficulty is None:
+            return jsonify({'error': 'Cannot get network difficulty'}), 500
+
+        return jsonify({
+            'difficulty': float(difficulty),
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/palladium/coinbase-subsidy')
+def palladium_coinbase_subsidy():
+    """Get current block subsidy details from node RPC."""
+    try:
+        subsidy = palladium_rpc_call('getblocksubsidy')
+        if subsidy is None:
+            return jsonify({'error': 'Cannot get coinbase subsidy'}), 500
+
+        # Keep response stable for both numeric and object RPC variants.
+        if isinstance(subsidy, dict):
+            payload = {'coinbase_subsidy': subsidy}
+        else:
+            payload = {'coinbase_subsidy': float(subsidy)}
+
+        payload['timestamp'] = datetime.now().isoformat()
+        return jsonify(payload)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/palladium/peers')
 def palladium_peers():
