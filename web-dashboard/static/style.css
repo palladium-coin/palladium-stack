@@ -454,6 +454,72 @@ canvas {
     max-height: 280px !important;
 }
 
+/* ─── Tab Navigation ─────────────────────────────────────────────────────── */
+
+.tab-nav {
+    display: flex;
+    gap: 6px;
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 6px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border-color);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.tab-nav::-webkit-scrollbar {
+    display: none;
+}
+
+.tab-btn {
+    flex: 1;
+    min-width: max-content;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    font-family: inherit;
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.tab-btn.active {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+}
+
+/* ─── Tab Panels ─────────────────────────────────────────────────────────── */
+
+.tab-panel {
+    margin-bottom: 24px;
+}
+
+.tab-panel--hidden {
+    display: none;
+}
+
+/* stat-grid-3col full-width span */
+.stat-grid-3col .full-width {
+    grid-column: 1 / -1;
+}
+
+/* System Resources card bottom spacing */
+.system-resources-card {
+    margin-bottom: 24px;
+}
+
 /* ─── Responsive ────────────────────────────────────────────────────────── */
 
 /* Tablet landscape (≤ 1024px) */
@@ -558,6 +624,23 @@ canvas {
     .blocks-table th,
     .blocks-table td {
         padding: 8px 6px;
+    }
+
+    .tab-nav {
+        padding: 5px;
+        gap: 4px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+    }
+
+    .tab-btn {
+        padding: 9px 14px;
+        font-size: 13px;
+        min-width: 0;
+    }
+
+    .tab-panel {
+        margin-bottom: 16px;
     }
 
     .footer {
@@ -744,6 +827,28 @@ canvas {
     .blocks-table td {
         padding: 7px 4px;
         white-space: nowrap;
+    }
+
+    .tab-nav {
+        padding: 4px;
+        gap: 3px;
+        margin-bottom: 10px;
+        border-radius: 10px;
+        flex-wrap: wrap;
+        overflow-x: hidden;
+    }
+
+    .tab-btn {
+        padding: 8px 12px;
+        font-size: 12px;
+        border-radius: 7px;
+        flex: 1 1 40%;
+        min-width: 0;
+        text-align: center;
+    }
+
+    .tab-panel {
+        margin-bottom: 10px;
     }
 
     .back-button {

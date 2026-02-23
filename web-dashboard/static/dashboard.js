@@ -299,8 +299,25 @@ async function updateAll() {
     ]);
 }
 
+// Tab navigation
+function initTabs() {
+    const buttons = document.querySelectorAll('.tab-btn');
+    const panels  = document.querySelectorAll('.tab-panel');
+
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            buttons.forEach(b => b.classList.remove('active'));
+            panels.forEach(p => p.classList.add('tab-panel--hidden'));
+            btn.classList.add('active');
+            document.getElementById('tab-' + btn.dataset.tab).classList.remove('tab-panel--hidden');
+        });
+    });
+}
+
 // Initialize dashboard
 document.addEventListener('DOMContentLoaded', async () => {
+    initTabs();
+
     // Initial update
     await updateAll();
 
