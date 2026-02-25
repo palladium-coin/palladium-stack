@@ -94,6 +94,7 @@ services:
       ELECTRUMX_RPC_PORT: "8000"
       DASHBOARD_AUTH_USERNAME: "${DASHBOARD_AUTH_USERNAME:-admin}"
       DASHBOARD_AUTH_PASSWORD: "${DASHBOARD_AUTH_PASSWORD:-change-me-now}"
+      API_KEY: "${API_KEY:-}"
 
     volumes:
       - ./.palladium/palladium.conf:/palladium-config/palladium.conf:ro
