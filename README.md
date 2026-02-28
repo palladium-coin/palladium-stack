@@ -30,11 +30,68 @@ Complete Dockerized setup for running an **ElectrumX server** with an integrated
 ```
 Internet              Docker Host
    │                       │
-   ├─ P2P  :2333 ──────► palladiumd
-   ├─ TCP  :50001 ─────► electrumx ◄── palladiumd (internal RPC)
-   ├─ SSL  :50002 ─────► electrumx
-   └─ HTTP :8080  ─────► dashboard ◄── palladiumd (RPC) + electrumx (Electrum protocol)
+   ├─ P2P  :2333 ──────► palladiumd ◄──────────────────────────────┐
+   ├─ TCP  :50001 ─────► electrumx  ◄── palladiumd (RPC, internal) │  palladium-net
+   ├─ SSL  :50002 ─────► electrumx                                 │  (Docker network)
+   └─ HTTP :8080  ─────► dashboard  ◄── palladiumd + electrumx ◄───┘
 ```
+
+All services share the `palladium-net` Docker network. RPC and ZMQ ports are **not** exposed on the host — internal communication uses Docker hostnames (e.g. `palladiumd:2332`).
+
+---
+
+## Connecting Other Docker Stacks
+
+If you run another stack on the same host (e.g. a mining pool, an explorer, a custom bot) and need to reach the node or ElectrumX, join the shared `palladium-net` network — no ports need to be exposed on the host.
+
+**In your external `docker-compose.yml`:**
+
+```yaml
+networks:
+  palladium-net:
+    external: true   # already created by this stack
+
+services:
+  myapp:
+    image: ...
+    networks:
+      - palladium-net
+    environment:
+      # Connect via service name — Docker resolves it internally
+      RPC_HOST: palladiumd
+      RPC_PORT: "2332"
+      ZMQ_HASHBLOCK: "tcp://palladiumd:28332"
+      ZMQ_RAWBLOCK:  "tcp://palladiumd:28334"
+      ZMQ_RAWTX:     "tcp://palladiumd:28335"
+      ELECTRUMX_HOST: electrumx
+      ELECTRUMX_PORT: "50001"
+```
+
+> **Note:** `palladium-net` is created automatically when you run `docker compose up` on this stack for the first time. Start this stack before starting any dependent stack.
+
+### Exposing a port to the host (optional)
+
+By default, RPC and ZMQ ports are only reachable inside `palladium-net`. If you have an application running **directly on the host** (not in Docker) that needs to connect, you can expose a port in `docker-compose.yml`:
+
+```yaml
+ports:
+  - "127.0.0.1:2332:2332"   # RPC — localhost only (safe)
+  - "127.0.0.1:28332:28332" # ZMQ hashblock — localhost only
+```
+
+Use `127.0.0.1:` as the bind address to restrict access to the local machine only. Using `0.0.0.0:` would make the port reachable from the network — avoid this for RPC and ZMQ.
+
+### Available internal endpoints
+
+| Service | Hostname | Port | Protocol |
+|---------|----------|------|----------|
+| Palladium node RPC | `palladiumd` | `2332` | HTTP JSON-RPC |
+| ZMQ hashblock | `palladiumd` | `28332` | ZMQ pub |
+| ZMQ rawblock | `palladiumd` | `28334` | ZMQ pub |
+| ZMQ rawtx | `palladiumd` | `28335` | ZMQ pub |
+| ElectrumX TCP | `electrumx` | `50001` | Electrum protocol |
+| ElectrumX SSL | `electrumx` | `50002` | Electrum protocol (SSL) |
+| Web Dashboard | `dashboard` | `8080` | HTTP |
 
 ---
 

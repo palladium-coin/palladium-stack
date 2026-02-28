@@ -1,3 +1,7 @@
+networks:
+  palladium-net:
+    name: palladium-net  # fixed name, independent of the directory — other stacks can join with external: true
+
 services:
   palladiumd:
     build:
@@ -6,13 +10,17 @@ services:
     image: palladium-node:local
     container_name: palladium-node
     restart: unless-stopped
+    networks:
+      - palladium-net
     ports:
-      - "127.0.0.1:2332:2332"  # RPC port mainnet (host-local only)
       - "0.0.0.0:2333:2333"  # P2P port mainnet (accessible from network)
-      - "127.0.0.1:28332:28332"  # ZMQ hashblock (host-local debug only)
-      - "127.0.0.1:28334:28334"  # ZMQ rawblock (host-local debug only)
-      - "127.0.0.1:28335:28335"  # ZMQ rawtx (host-local debug only)
-      # For testnet, expose: 12332 (RPC) and 12333 (P2P)
+      # For testnet, expose: 12333 (P2P)
+      # RPC (2332) and ZMQ (28332/28334/28335) are NOT exposed on the host.
+      # Other Docker stacks on this host can reach them via palladium-net:
+      #   palladiumd:2332  (RPC)
+      #   palladiumd:28332 (ZMQ hashblock)
+      #   palladiumd:28334 (ZMQ rawblock)
+      #   palladiumd:28335 (ZMQ rawtx)
 
     volumes:
       # Mount .palladium folder (contains config and blockchain data)
@@ -34,6 +42,8 @@ services:
     restart: unless-stopped
     depends_on:
       - palladiumd
+    networks:
+      - palladium-net
     ports:
       - "0.0.0.0:50001:50001"  # TCP (accessible from network)
       - "0.0.0.0:50002:50002"  # SSL (accessible from network)
@@ -84,6 +94,8 @@ services:
     depends_on:
       - palladiumd
       - electrumx
+    networks:
+      - palladium-net
     ports:
       - "0.0.0.0:8080:8080"  # Web Dashboard (accessible from network)
 
