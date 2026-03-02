@@ -250,7 +250,9 @@ Configure in `.env` (copy from `.env.example`):
 |----------|---------|
 | `DASHBOARD_AUTH_USERNAME` | Basic Auth username for external dashboard access |
 | `DASHBOARD_AUTH_PASSWORD` | Basic Auth password for external dashboard access |
-| `API_KEY` | Key for external API calls (`X-API-Key` header or `Authorization: Bearer`) |
+| `API_KEY` | Key for external API calls (`X-API-Key` header or `Authorization: Bearer`); also signs session cookies |
+| `DASHBOARD_SESSION_HOURS` | Session duration after login (hours, default: `1`) |
+| `DASHBOARD_SESSION_COOKIE_SECURE` | Set to `true` when serving over HTTPS (default: `false`) |
 
 **Firewall (recommended):**
 ```bash

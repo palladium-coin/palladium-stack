@@ -3,7 +3,7 @@
 Web Dashboard API for Palladium Node and ElectrumX Server Statistics
 """
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, session
 from flask_cors import CORS
 import requests
 import json
@@ -15,12 +15,21 @@ import ssl
 import ipaddress
 import base64
 import hmac
-from datetime import datetime
+import secrets
+from datetime import datetime, timedelta
 import psutil
 import socket
 
 app = Flask(__name__)
 CORS(app)
+
+app.secret_key = os.getenv('API_KEY', secrets.token_hex(32))
+_session_hours = int(os.getenv('DASHBOARD_SESSION_HOURS', '1'))
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=_session_hours)
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+_cookie_secure_raw = os.getenv('DASHBOARD_SESSION_COOKIE_SECURE', 'false').strip().lower()
+app.config['SESSION_COOKIE_SECURE'] = _cookie_secure_raw in ('1', 'true', 'yes')
 
 TRUSTED_CLIENT_NETWORKS = (
     ipaddress.ip_network('127.0.0.0/8'),
@@ -97,6 +106,9 @@ def enforce_external_auth():
             return None
         return api_unauthorized_response()
 
+    if session.get('authenticated'):
+        return None
+
     expected_user = os.getenv('DASHBOARD_AUTH_USERNAME', '').strip()
     expected_pass = os.getenv('DASHBOARD_AUTH_PASSWORD', '').strip()
     if not expected_user or not expected_pass:
@@ -116,6 +128,9 @@ def enforce_external_auth():
     pass_ok = hmac.compare_digest(password, expected_pass)
     if not (user_ok and pass_ok):
         return unauthorized_response()
+
+    session.permanent = True
+    session['authenticated'] = True
     return None
 
 

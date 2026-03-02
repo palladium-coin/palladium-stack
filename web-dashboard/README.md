@@ -51,7 +51,11 @@ nano .env                # fill in the three variables
 |----------|---------|
 | `DASHBOARD_AUTH_USERNAME` | Basic Auth username (dashboard pages, external clients) |
 | `DASHBOARD_AUTH_PASSWORD` | Basic Auth password (dashboard pages, external clients) |
-| `API_KEY` | API key for `/api/*` calls from external IPs |
+| `API_KEY` | API key for `/api/*` calls from external IPs; also signs session cookies |
+| `DASHBOARD_SESSION_HOURS` | How long a login session lasts before re-authentication is required (default: `1`) |
+| `DASHBOARD_SESSION_COOKIE_SECURE` | Set to `true` if the dashboard is served over HTTPS (default: `false`) |
+
+After a successful login, the browser receives a signed session cookie valid for `DASHBOARD_SESSION_HOURS` hours. Navigating between pages does not trigger a new login prompt until the session expires.
 
 After editing `.env`, apply it:
 ```bash
