@@ -303,14 +303,64 @@ async function updateAll() {
 function initTabs() {
     const buttons = document.querySelectorAll('.tab-btn');
     const panels  = document.querySelectorAll('.tab-panel');
+    const storageKey = 'palladium.dashboard.activeTab';
+    const validTabs = new Set(Array.from(buttons, btn => btn.dataset.tab));
+
+    function getTabFromHash() {
+        const hashTab = window.location.hash.replace('#', '').trim();
+        return validTabs.has(hashTab) ? hashTab : null;
+    }
+
+    function getTabFromStorage() {
+        try {
+            const savedTab = localStorage.getItem(storageKey);
+            return validTabs.has(savedTab) ? savedTab : null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function setActiveTab(tabName, updateUrl = true) {
+        if (!validTabs.has(tabName)) return;
+
+        buttons.forEach(b => b.classList.remove('active'));
+        panels.forEach(p => p.classList.add('tab-panel--hidden'));
+
+        const activeButton = Array.from(buttons).find(b => b.dataset.tab === tabName);
+        if (!activeButton) return;
+        activeButton.classList.add('active');
+
+        const panel = document.getElementById('tab-' + tabName);
+        if (panel) {
+            panel.classList.remove('tab-panel--hidden');
+        }
+
+        try {
+            localStorage.setItem(storageKey, tabName);
+        } catch (error) {
+            // Ignore localStorage write failures
+        }
+
+        if (updateUrl) {
+            const base = window.location.pathname + window.location.search;
+            history.replaceState(null, '', `${base}#${tabName}`);
+        }
+    }
+
+    const initialTab = getTabFromHash() || getTabFromStorage() || 'palladium';
+    setActiveTab(initialTab, true);
 
     buttons.forEach(btn => {
         btn.addEventListener('click', () => {
-            buttons.forEach(b => b.classList.remove('active'));
-            panels.forEach(p => p.classList.add('tab-panel--hidden'));
-            btn.classList.add('active');
-            document.getElementById('tab-' + btn.dataset.tab).classList.remove('tab-panel--hidden');
+            setActiveTab(btn.dataset.tab, true);
         });
+    });
+
+    window.addEventListener('hashchange', () => {
+        const hashTab = getTabFromHash();
+        if (hashTab) {
+            setActiveTab(hashTab, false);
+        }
     });
 }
 
