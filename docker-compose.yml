@@ -107,6 +107,8 @@ services:
       DASHBOARD_AUTH_USERNAME: "${DASHBOARD_AUTH_USERNAME:-admin}"
       DASHBOARD_AUTH_PASSWORD: "${DASHBOARD_AUTH_PASSWORD:-change-me-now}"
       API_KEY: "${API_KEY:-}"
+      DASHBOARD_SESSION_HOURS: "${DASHBOARD_SESSION_HOURS:-1}"
+      DASHBOARD_SESSION_COOKIE_SECURE: "${DASHBOARD_SESSION_COOKIE_SECURE:-false}"
 
     volumes:
       - ./.palladium/palladium.conf:/palladium-config/palladium.conf:ro

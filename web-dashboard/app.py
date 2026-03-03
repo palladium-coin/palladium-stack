@@ -542,7 +542,7 @@ def get_electrumx_stats(include_addnode_probes=False):
             # Last fallback: get hostname IP
             try:
                 stats['server_ip'] = socket.gethostbyname(socket.gethostname())
-            except:
+            except Exception:
                 stats['server_ip'] = 'Unknown'
 
         # Get server features via Electrum protocol
@@ -844,12 +844,12 @@ def index():
 @app.route('/peers')
 def peers():
     """Serve peers page"""
-    return render_template('peers.html')
+    return render_template('peers.html', api_key=os.getenv('API_KEY', '').strip())
 
 @app.route('/electrum-servers')
 def electrum_servers():
     """Serve Electrum active servers page"""
-    return render_template('electrum_servers.html')
+    return render_template('electrum_servers.html', api_key=os.getenv('API_KEY', '').strip())
 
 @app.route('/api/palladium/info')
 def palladium_info():

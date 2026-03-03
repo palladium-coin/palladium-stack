@@ -63,7 +63,7 @@ async function updatePeers() {
                 totalReceived += peer.bytesrecv || 0;
 
                 // Extract version number
-                let version = peer.subver || peer.version || 'Unknown';
+                let version = peer.version || 'Unknown';
                 const versionMatch = version.match(/([\d.]+)/);
                 if (versionMatch) {
                     version = 'v' + versionMatch[1];
