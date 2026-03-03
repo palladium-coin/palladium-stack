@@ -68,6 +68,7 @@
         </footer>
     </div>
 
+    <script>window.DASHBOARD_API_KEY = {{ api_key|tojson }};</script>
     <script src="{{ url_for('static', filename='electrum_servers.js') }}?v=3"></script>
 </body>
 </html>

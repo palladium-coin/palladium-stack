@@ -1,5 +1,11 @@
 // Peers Page JavaScript
 
+async function apiFetch(url) {
+    const apiKey = (window.DASHBOARD_API_KEY || '').trim();
+    const headers = apiKey ? { 'X-API-Key': apiKey } : {};
+    return fetch(url, { headers });
+}
+
 // Format bytes
 function formatBytes(bytes) {
     if (bytes === 0) return '0 B';
@@ -23,7 +29,7 @@ function formatDuration(seconds) {
 // Update peers table and statistics
 async function updatePeers() {
     try {
-        const response = await fetch('/api/palladium/peers');
+        const response = await apiFetch('/api/palladium/peers');
         const data = await response.json();
 
         if (data.error) {

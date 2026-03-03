@@ -1,5 +1,11 @@
 // Electrum Active Servers Page JavaScript
 
+async function apiFetch(url) {
+    const apiKey = (window.DASHBOARD_API_KEY || '').trim();
+    const headers = apiKey ? { 'X-API-Key': apiKey } : {};
+    return fetch(url, { headers });
+}
+
 function updateLastUpdateTime() {
     const now = new Date().toLocaleString();
     document.getElementById('lastUpdate').textContent = now;
@@ -7,7 +13,7 @@ function updateLastUpdateTime() {
 
 async function updateElectrumServers() {
     try {
-        const response = await fetch('/api/electrumx/servers');
+        const response = await apiFetch('/api/electrumx/servers');
         const data = await response.json();
 
         if (data.error) {
