@@ -2,29 +2,59 @@
 
 This directory must contain the pre-compiled Palladium Core binaries used by the Docker node container.
 
-## Download
+## Recommended (new flow)
 
-Download from the official release repository: **https://github.com/palladium-coin/palladiumcore/releases/latest**
+Use the helper script in this folder:
 
-## Architecture
+```bash
+cd daemon
+./download-binaries.sh
+```
 
-The binaries **must match the host architecture** where Docker is running.
-Choose the correct archive for your platform:
+What it does:
 
-| Host Architecture | Archive to download     | Common hardware                     |
-|-------------------|-------------------------|-------------------------------------|
-| `x86_64`          | `palladium-linux-x86_64.tar.gz`  | Standard PCs, most VPS/cloud servers |
-| `aarch64`         | `palladium-linux-aarch64.tar.gz` | Single-board computers (Raspberry Pi 4/5, Orange Pi, etc.) |
+- downloads the latest release assets from `palladium-coin/palladiumcore`
+- auto-selects a compatible archive for your platform/architecture
+- extracts binaries and copies them into `daemon/`
+- removes temporary files
 
-To check your host architecture:
+## Script options
+
+```bash
+./download-binaries.sh --help
+```
+
+Common examples:
+
+```bash
+# default (recommended for Docker): Linux + auto-detected arch
+./download-binaries.sh
+
+# force Linux architecture
+./download-binaries.sh --platform linux --arch x86_64
+./download-binaries.sh --platform linux --arch aarch64
+
+# download Windows binaries (.exe)
+./download-binaries.sh --platform windows --arch x86_64
+```
+
+## Architecture notes
+
+For this stack, Docker needs Linux binaries matching your host CPU architecture.
+
+- `x86_64` / `amd64`: most servers and desktops
+- `aarch64` / `arm64`: Raspberry Pi 4/5 (64-bit OS), ARM servers
+- `armv7l`: 32-bit ARM builds (not the default setup for this stack)
+
+Check your architecture:
 
 ```bash
 uname -m
 ```
 
-## Required binaries
+## Required binaries for Docker node
 
-Extract the following files from the release archive and place them in this directory:
+The `Dockerfile.palladium-node` expects these files in `daemon/`:
 
 ```
 daemon/
@@ -34,33 +64,7 @@ daemon/
   palladium-wallet     # Wallet utility
 ```
 
-## Quick setup
-
-### Example for x86_64 (VPS/PC)
-
-```bash
-cd daemon
-wget https://github.com/palladium-coin/palladiumcore/releases/latest/download/palladium-linux-x86_64.tar.gz
-tar -xzf palladium-linux-x86_64.tar.gz
-cd linux-x86_64
-mv palladium* ..
-cd ..
-rm -rf linux-x86_64/ && rm palladium-linux-x86_64.tar.gz
-```
-
-### Example for aarch64 (Raspberry Pi)
-
-```bash
-cd daemon
-wget https://github.com/palladium-coin/palladiumcore/releases/latest/download/palladium-linux-aarch64.tar.gz
-tar -xzf palladium-linux-aarch64.tar.gz
-cd linux-aarch64
-mv palladium* ..
-cd ..
-rm -rf linux-aarch64/ && rm palladium-linux-aarch64.tar.gz
-```
-
-After placing the binaries, rebuild the node image:
+After downloading binaries, rebuild the node image:
 
 ```bash
 docker compose build palladiumd

@@ -99,8 +99,15 @@ Use `127.0.0.1:` as the bind address to restrict access to the local machine onl
 
 ### Step 1 — Get Palladium Binaries
 
-Download the binaries for your architecture and place them in `daemon/`.
-→ See [daemon/README.md](daemon/README.md) for detailed instructions.
+Use the helper script:
+
+```bash
+cd daemon
+./download-binaries.sh
+```
+
+This downloads and installs the latest compatible binaries into `daemon/`.
+→ See [daemon/README.md](daemon/README.md) for advanced options (`--arch`, `--platform`, `--repo`).
 
 ### Step 2 — Set RPC Credentials
 
@@ -224,6 +231,8 @@ sudo lsof -i :<port>    # find what is using the port
 ```bash
 uname -m                  # your system: x86_64 or aarch64
 file daemon/palladiumd   # binary must match
+# if needed, re-download with the helper script:
+./daemon/download-binaries.sh --platform linux --arch x86_64
 ```
 
 **Dashboard not loading from LAN**
@@ -271,7 +280,12 @@ sudo ufw enable
 
 ```
 palladium-stack/
-├── daemon/                    # Palladium binaries (add these — see daemon/README.md)
+├── daemon/
+│   ├── download-binaries.sh   # Download/extract/install latest Palladium binaries
+│   ├── palladiumd             # Node daemon binary (downloaded)
+│   ├── palladium-cli          # RPC CLI binary (downloaded)
+│   ├── palladium-tx           # TX utility binary (downloaded)
+│   └── palladium-wallet       # Wallet utility binary (downloaded)
 ├── .palladium/
 │   ├── palladium.conf         # Node configuration (edit RPC credentials here)
 │   ├── blocks/                # Blockchain data (auto-generated)
