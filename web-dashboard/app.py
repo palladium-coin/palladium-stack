@@ -151,10 +151,53 @@ ELECTRUMX_RPC_PORT = int(os.getenv('ELECTRUMX_RPC_PORT', '8000'))
 ELECTRUMX_STATS_TTL = int(os.getenv('ELECTRUMX_STATS_TTL', '60'))
 ELECTRUMX_SERVERS_TTL = int(os.getenv('ELECTRUMX_SERVERS_TTL', '120'))
 ELECTRUMX_EMPTY_SERVERS_TTL = int(os.getenv('ELECTRUMX_EMPTY_SERVERS_TTL', '15'))
+PALLADIUM_PEERS_TTL = int(os.getenv('PALLADIUM_PEERS_TTL', '30'))
 
 # In-memory caches for fast card stats and heavier server probing stats
 _electrumx_stats_cache = {'timestamp': 0.0, 'stats': None}
 _electrumx_servers_cache = {'timestamp': 0.0, 'stats': None}
+_palladium_peers_cache = {'timestamp': 0.0, 'data': None}
+
+
+def _refresh_peers_async():
+    """Refresh peers cache in background — never blocks callers."""
+    def _worker():
+        try:
+            peer_info = palladium_rpc_call('getpeerinfo')
+            if peer_info is not None:
+                _palladium_peers_cache['data'] = peer_info
+                _palladium_peers_cache['timestamp'] = time.time()
+        except Exception as e:
+            print(f"Peers background refresh error: {e}")
+    threading.Thread(target=_worker, daemon=True).start()
+
+
+def get_peers_cached():
+    """Return cached peer list; never blocks after first load.
+
+    If cache is valid: return immediately (<1ms).
+    If stale: return old data now + kick off background refresh.
+    If empty (first call): block once to populate cache.
+    """
+    cache = _palladium_peers_cache
+    now = time.time()
+    cached = cache.get('data')
+    cache_age = now - cache.get('timestamp', 0.0)
+
+    if cached is not None and cache_age < PALLADIUM_PEERS_TTL:
+        return copy.deepcopy(cached)
+
+    # Stale: return old data immediately, refresh in background
+    _refresh_peers_async()
+    if cached is not None:
+        return copy.deepcopy(cached)
+
+    # No data yet: block once so the first response is still meaningful
+    fresh = palladium_rpc_call('getpeerinfo')
+    if fresh is not None:
+        cache['data'] = fresh
+        cache['timestamp'] = time.time()
+    return fresh
 
 
 def warm_electrumx_caches_async():
@@ -167,6 +210,11 @@ def warm_electrumx_caches_async():
             print(f"ElectrumX cache warmup error: {e}")
 
     threading.Thread(target=_worker, daemon=True).start()
+
+
+def warm_peers_cache_async():
+    """Pre-warm peers cache at startup so first user gets instant response."""
+    _refresh_peers_async()
 
 
 def parse_addnode_hosts(conf_path='/palladium-config/palladium.conf'):
@@ -408,8 +456,37 @@ def is_electrumx_reachable_retry():
     return is_electrumx_reachable(timeout=2.0)
 
 
+_refresh_lock_stats   = threading.Lock()   # include_addnode_probes=False
+_refresh_lock_servers = threading.Lock()   # include_addnode_probes=True
+
+
+def _refresh_cache_async(include_addnode_probes):
+    """Background worker: refresh cache without blocking callers."""
+    lock = _refresh_lock_servers if include_addnode_probes else _refresh_lock_stats
+    if not lock.acquire(blocking=False):
+        return  # refresh already in progress
+    def _worker():
+        try:
+            cache = _electrumx_servers_cache if include_addnode_probes else _electrumx_stats_cache
+            fresh = get_electrumx_stats(include_addnode_probes=include_addnode_probes)
+            if fresh is not None:
+                cache['timestamp'] = time.time()
+                cache['stats'] = fresh
+        except Exception as e:
+            print(f"Background cache refresh error: {e}")
+        finally:
+            lock.release()
+    threading.Thread(target=_worker, daemon=True).start()
+
+
 def get_electrumx_stats_cached(force_refresh=False, include_addnode_probes=False):
-    """Return cached ElectrumX stats unless cache is stale."""
+    """Return cached ElectrumX stats; refresh in background when stale.
+
+    Never blocks the caller: if the cache is stale or empty but a refresh is
+    already in-flight, return whatever stale data we have immediately so every
+    HTTP response is fast.  A force_refresh=True call (from warm-up) still
+    blocks because it runs in its own background thread anyway.
+    """
     cache = _electrumx_servers_cache if include_addnode_probes else _electrumx_stats_cache
     ttl = ELECTRUMX_SERVERS_TTL if include_addnode_probes else ELECTRUMX_STATS_TTL
     now = time.time()
@@ -423,18 +500,34 @@ def get_electrumx_stats_cached(force_refresh=False, include_addnode_probes=False
     ):
         ttl = ELECTRUMX_EMPTY_SERVERS_TTL
 
-    if not force_refresh and cached is not None and (now - cached_ts) < ttl:
+    cache_age = now - cached_ts
+    cache_valid = cached is not None and cache_age < ttl
+
+    if force_refresh:
+        # Called from warm_electrumx_caches_async — do a real blocking fetch
+        fresh = get_electrumx_stats(include_addnode_probes=include_addnode_probes)
+        if fresh is not None:
+            cache['timestamp'] = time.time()
+            cache['stats'] = fresh
+            return copy.deepcopy(fresh)
+        if cached is not None:
+            return copy.deepcopy(cached)
+        return None
+
+    if cache_valid:
         return copy.deepcopy(cached)
 
-    fresh = get_electrumx_stats(include_addnode_probes=include_addnode_probes)
-    if fresh is not None:
-        cache['timestamp'] = now
-        cache['stats'] = fresh
-        return copy.deepcopy(fresh)
-
-    # Fallback to stale cache if fresh fetch fails
+    # Cache is stale — kick off a background refresh and return stale data now
+    _refresh_cache_async(include_addnode_probes)
     if cached is not None:
         return copy.deepcopy(cached)
+
+    # No cached data at all: block once to get something to show
+    fresh = get_electrumx_stats(include_addnode_probes=include_addnode_probes)
+    if fresh is not None:
+        cache['timestamp'] = time.time()
+        cache['stats'] = fresh
+        return copy.deepcopy(fresh)
     return None
 
 # Read RPC credentials from palladium.conf
@@ -959,7 +1052,7 @@ def palladium_coinbase_subsidy():
 def palladium_peers():
     """Get detailed peer information"""
     try:
-        peer_info = palladium_rpc_call('getpeerinfo')
+        peer_info = get_peers_cached()
         if not peer_info:
             return jsonify({'peers': []})
 
@@ -1119,4 +1212,5 @@ def health():
 
 if __name__ == '__main__':
     warm_electrumx_caches_async()
+    warm_peers_cache_async()
     app.run(host='0.0.0.0', port=8080, debug=False)
