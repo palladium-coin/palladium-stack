@@ -48,7 +48,7 @@ async function updatePeers() {
 
             data.peers.forEach(peer => {
                 const row = document.createElement('tr');
-                const direction = peer.inbound ? '⬇️ Inbound' : '⬆️ Outbound';
+                const direction = peer.inbound ? 'Inbound' : 'Outbound';
                 const directionClass = peer.inbound ? 'peer-inbound' : 'peer-outbound';
 
                 // Count inbound/outbound
