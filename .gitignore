@@ -1,11 +1,13 @@
 # SSL certificates (auto-generated or user-provided)
-/certs/
+/certs/*
+!/certs/.gitkeep
 
 # Environment file
 .env
 
 # ElectrumX server data
-/electrumx-data/
+/electrumx-data/*
+!/electrumx-data/.gitkeep
 
 # Palladium node data (keep only the config file)
 /.palladium/*
