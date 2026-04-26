@@ -1,6 +1,6 @@
 networks:
-  palladium-net:
-    name: palladium-net  # fixed name, independent of the directory — other stacks can join with external: true
+  palladium:
+    name: palladium  # fixed name, independent of the directory — other stacks can join with external: true
 
 services:
   palladiumd:
@@ -11,7 +11,7 @@ services:
     container_name: palladium-node
     restart: unless-stopped
     networks:
-      - palladium-net
+      - palladium
     ports:
       - "0.0.0.0:2333:2333"  # P2P port mainnet (accessible from network)
       # For testnet, expose: 12333 (P2P)
@@ -38,12 +38,12 @@ services:
       context: .
       dockerfile: Dockerfile.electrumx
     image: electrumx-server:local
-    container_name: electrumx-server
+    container_name: plm-electrumx
     restart: unless-stopped
     depends_on:
       - palladiumd
     networks:
-      - palladium-net
+      - palladium
     ports:
       - "0.0.0.0:50001:50001"  # TCP (accessible from network)
       - "0.0.0.0:50002:50002"  # SSL (accessible from network)
@@ -95,7 +95,7 @@ services:
       - palladiumd
       - electrumx
     networks:
-      - palladium-net
+      - palladium
     ports:
       - "0.0.0.0:8080:8080"  # Web Dashboard (accessible from network)
 
