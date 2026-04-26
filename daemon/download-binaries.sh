@@ -79,7 +79,7 @@ case "$archive" in
   *) die "Unsupported archive format: ${archive##*/}" ;;
 esac
 
-for b in palladiumd palladium-cli palladium-tx palladium-wallet; do
+for b in palladiumd palladium-cli; do
   src="$(find "$tmp" -type f \( -name "$b" -o -name "$b.exe" \) | head -n 1 || true)"
   [[ -n "$src" ]] || die "Binary not found: $b"
   cp "$src" "$dir/$(basename "$src")"
