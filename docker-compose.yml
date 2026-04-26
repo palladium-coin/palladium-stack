@@ -45,8 +45,8 @@ services:
     networks:
       - palladium
     ports:
-      - "0.0.0.0:50001:50001"  # TCP (accessible from network)
-      - "0.0.0.0:50002:50002"  # SSL (accessible from network)
+      - "0.0.0.0:${ELECTRUMX_TCP_PORT:-50001}:${ELECTRUMX_TCP_PORT:-50001}"  # TCP
+      - "0.0.0.0:${ELECTRUMX_SSL_PORT:-50002}:${ELECTRUMX_SSL_PORT:-50002}"  # SSL
 
     environment:
       # ===== Network Configuration =====
@@ -59,7 +59,7 @@ services:
       # NOTE: RPC credentials are automatically read from palladium.conf
       # No need to configure DAEMON_URL manually anymore!
 
-      SERVICES: "tcp://0.0.0.0:50001,ssl://0.0.0.0:50002"
+      SERVICES: "tcp://0.0.0.0:${ELECTRUMX_TCP_PORT:-50001},ssl://0.0.0.0:${ELECTRUMX_SSL_PORT:-50002}"
 
       SSL_CERTFILE: "/certs/server.crt"
       SSL_KEYFILE: "/certs/server.key"
@@ -97,7 +97,7 @@ services:
     networks:
       - palladium
     ports:
-      - "0.0.0.0:8080:8080"  # Web Dashboard (accessible from network)
+      - "0.0.0.0:${DASHBOARD_PORT:-8080}:8080"  # Web Dashboard (accessible from network)
 
     environment:
       PALLADIUM_RPC_HOST: "palladiumd"
