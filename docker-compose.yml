@@ -37,7 +37,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.electrumx
-    image: electrumx-server:local
+    image: plm-electrumx:local
     container_name: plm-electrumx
     restart: unless-stopped
     depends_on:
