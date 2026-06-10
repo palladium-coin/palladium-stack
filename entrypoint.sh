@@ -44,12 +44,14 @@ fi
 export DAEMON_URL="http://${RPC_USER}:${RPC_PASSWORD}@palladiumd:${RPC_PORT}/"
 
 # Auto-detect public IP and set REPORT_SERVICES for peer discovery
+TCP_PORT="${ELECTRUMX_TCP_PORT:-50001}"
+SSL_PORT="${ELECTRUMX_SSL_PORT:-50002}"
 if [ -z "$REPORT_SERVICES" ]; then
     echo "REPORT_SERVICES not set, detecting public IP..."
     for url in https://icanhazip.com https://ifconfig.me https://api.ipify.org; do
         PUBLIC_IP=$(curl -sf --max-time 5 "$url" 2>/dev/null | tr -d '[:space:]')
         if [ -n "$PUBLIC_IP" ]; then
-            export REPORT_SERVICES="tcp://${PUBLIC_IP}:50001,ssl://${PUBLIC_IP}:50002"
+            export REPORT_SERVICES="tcp://${PUBLIC_IP}:${TCP_PORT},ssl://${PUBLIC_IP}:${SSL_PORT}"
             echo ">> Auto-detected REPORT_SERVICES: ${REPORT_SERVICES}"
             break
         fi

@@ -28,6 +28,27 @@ for target in [
 print('>> Patched ElectrumX with Palladium coin classes')
 PATCH
 
+# Patch history.py: promote flush_count key from uint16 to uint32
+# (uint16 overflows after 65535 flushes, crashing the server at first_caught_up)
+RUN python3 - <<'PATCH'
+import pathlib
+
+for target in [
+    '/usr/local/lib/python3.13/dist-packages/electrumx/server/history.py',
+    '/electrumx/src/electrumx/server/history.py',
+]:
+    p = pathlib.Path(target)
+    if not p.exists():
+        continue
+    s = p.read_text()
+    s = s.replace('pack_be_uint16', 'pack_be_uint32')
+    s = s.replace('unpack_be_uint16_from', 'unpack_be_uint32_from')
+    # Key slice for flush_id grows from 2 bytes to 4 bytes
+    s = s.replace('key[-2:]', 'key[-4:]')
+    p.write_text(s)
+    print(f'>> Patched {target}: flush_count uint16 -> uint32')
+PATCH
+
 ENV SSL_CERTFILE=/certs/server.crt
 ENV SSL_KEYFILE=/certs/server.key
 

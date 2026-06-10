@@ -31,6 +31,7 @@ nano .env
 |----------|---------|-------------|
 | `ELECTRUMX_TCP_PORT` | `50001` | ElectrumX plain TCP port |
 | `ELECTRUMX_SSL_PORT` | `50002` | ElectrumX SSL port |
+| `ELECTRUMX_CACHE_MB` | `800` | ElectrumX in-memory cache (MB); peak RAM can reach 2-3x this during sync |
 | `DASHBOARD_PORT` | `8080` | Web dashboard port |
 | `DASHBOARD_AUTH_USERNAME` | `admin` | Basic Auth username (external clients) |
 | `DASHBOARD_AUTH_PASSWORD` | `change-me-now` | Basic Auth password (external clients) |

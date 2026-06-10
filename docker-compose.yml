@@ -32,6 +32,13 @@ services:
         max-size: "10m"
         max-file: "3"
 
+    healthcheck:
+      test: ["CMD", "palladium-cli", "-conf=/root/.palladium/palladium.conf", "-datadir=/root/.palladium", "getblockchaininfo"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s  # loading the block index can take minutes on large chains
+
     command: >
       palladiumd
       -conf=/root/.palladium/palladium.conf
@@ -47,12 +54,22 @@ services:
     container_name: plm-electrumx
     restart: unless-stopped
     depends_on:
-      - palladiumd
+      palladiumd:
+        condition: service_healthy
     networks:
       - palladium
     ports:
       - "0.0.0.0:${ELECTRUMX_TCP_PORT:-50001}:${ELECTRUMX_TCP_PORT:-50001}"  # TCP
       - "0.0.0.0:${ELECTRUMX_SSL_PORT:-50002}:${ELECTRUMX_SSL_PORT:-50002}"  # SSL
+
+    healthcheck:
+      # Client ports (50001/50002) only open after the first full sync;
+      # the RPC listener (8000) is up from startup, so probe that instead.
+      test: ["CMD", "python3", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), 5).close()"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
     environment:
       # ===== Network Configuration =====
@@ -67,6 +84,10 @@ services:
 
       SERVICES: "tcp://0.0.0.0:${ELECTRUMX_TCP_PORT:-50001},ssl://0.0.0.0:${ELECTRUMX_SSL_PORT:-50002},rpc://0.0.0.0:8000"
 
+      # Ports also exported for entrypoint.sh (REPORT_SERVICES auto-detection)
+      ELECTRUMX_TCP_PORT: "${ELECTRUMX_TCP_PORT:-50001}"
+      ELECTRUMX_SSL_PORT: "${ELECTRUMX_SSL_PORT:-50002}"
+
       SSL_CERTFILE: "/certs/server.crt"
       SSL_KEYFILE: "/certs/server.key"
 
@@ -76,8 +97,19 @@ services:
       # REPORT_SERVICES is auto-detected at startup. Set manually only to override.
       # REPORT_SERVICES: "tcp://your.public.ip:50001,ssl://your.public.ip:50002"
       INITIAL_CONCURRENT: "2"
-      COST_SOFT_LIMIT: "0"
-      COST_HARD_LIMIT: "0"
+
+      # ===== Resource limits (production hardening) =====
+      # Per-session DoS protection: throttle at soft limit, disconnect at hard limit.
+      # Never set these to 0 on a publicly announced server.
+      COST_SOFT_LIMIT: "1000"
+      COST_HARD_LIMIT: "10000"
+      # In-memory UTXO/history cache before flushing to disk.
+      # Real peak usage can reach 2-3x this value during initial sync;
+      # tune via .env based on host RAM (800 for 4GB hosts, 1500+ for 8GB).
+      CACHE_MB: "${ELECTRUMX_CACHE_MB:-800}"
+      MAX_SESSIONS: "1000"
+      SESSION_TIMEOUT: "600"
+
       DONATION_ADDRESS: "plm1qdq3gu2zvg9lyr8gxd6yln4wavc5tlp8prmvfay"
 
     logging:
@@ -104,8 +136,10 @@ services:
     container_name: palladium-dashboard
     restart: unless-stopped
     depends_on:
-      - palladiumd
-      - electrumx
+      palladiumd:
+        condition: service_healthy
+      electrumx:
+        condition: service_healthy
     networks:
       - palladium
     ports:
