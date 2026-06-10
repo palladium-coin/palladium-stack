@@ -1210,7 +1210,10 @@ def health():
         'timestamp': datetime.now().isoformat()
     })
 
+# Cache warm-up runs at import time so it works under gunicorn too
+# (gunicorn imports the module without executing the __main__ block).
+warm_electrumx_caches_async()
+warm_peers_cache_async()
+
 if __name__ == '__main__':
-    warm_electrumx_caches_async()
-    warm_peers_cache_async()
     app.run(host='0.0.0.0', port=8080, debug=False)
