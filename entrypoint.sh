@@ -48,17 +48,59 @@ TCP_PORT="${ELECTRUMX_TCP_PORT:-50001}"
 SSL_PORT="${ELECTRUMX_SSL_PORT:-50002}"
 if [ -z "$REPORT_SERVICES" ]; then
     echo "REPORT_SERVICES not set, detecting public IP..."
-    for url in https://icanhazip.com https://ifconfig.me https://api.ipify.org; do
-        PUBLIC_IP=$(curl -sf --max-time 5 "$url" 2>/dev/null | tr -d '[:space:]')
-        if [ -n "$PUBLIC_IP" ]; then
-            export REPORT_SERVICES="tcp://${PUBLIC_IP}:${TCP_PORT},ssl://${PUBLIC_IP}:${SSL_PORT}"
-            echo ">> Auto-detected REPORT_SERVICES: ${REPORT_SERVICES}"
-            break
-        fi
+    # Retry: if the network is not ready at boot, giving up here would leave
+    # the server permanently unannounced to the peer network.
+    for attempt in 1 2 3 4 5; do
+        for url in https://icanhazip.com https://ifconfig.me https://api.ipify.org; do
+            # -4: force IPv4 — an IPv6 address without brackets would produce
+            # a malformed service URL that ElectrumX cannot parse.
+            PUBLIC_IP=$(curl -sf4 --max-time 5 "$url" 2>/dev/null | tr -d '[:space:]')
+            if [ -n "$PUBLIC_IP" ]; then
+                export REPORT_SERVICES="tcp://${PUBLIC_IP}:${TCP_PORT},ssl://${PUBLIC_IP}:${SSL_PORT}"
+                echo ">> Auto-detected REPORT_SERVICES: ${REPORT_SERVICES}"
+                break 2
+            fi
+        done
+        echo ">> Public IP detection failed (attempt ${attempt}/5), retrying in 10s..."
+        sleep 10
     done
     if [ -z "$REPORT_SERVICES" ]; then
         echo ">> WARNING: Could not detect public IP. Peer discovery will not announce this server."
     fi
+fi
+
+# Append extra seed peers to the coin definition (comma-separated entries
+# in ElectrumX format, e.g. "1.2.3.4 t,my.server.org s t").
+# Lets a new server bootstrap from any existing peer without rebuilding the image.
+if [ -n "$EXTRA_PEERS" ]; then
+    echo "Adding extra seed peers: ${EXTRA_PEERS}"
+    python3 - "$EXTRA_PEERS" <<'PEERPATCH'
+import sys, pathlib, re
+
+extra = [e.strip() for e in sys.argv[1].split(',') if e.strip()]
+for target in [
+    '/usr/local/lib/python3.13/dist-packages/electrumx/lib/coins.py',
+    '/electrumx/src/electrumx/lib/coins.py',
+]:
+    p = pathlib.Path(target)
+    if not p.exists():
+        continue
+    s = p.read_text()
+    m = re.search(r'class Palladium\(Bitcoin\):.*?PEERS = \[(.*?)\]', s, re.DOTALL)
+    if not m:
+        print(f'>> WARNING: PEERS list not found in {target}')
+        continue
+    existing = m.group(1)
+    new_entries = ''.join(
+        f"        '{e}',\n" for e in extra if f"'{e}'" not in existing
+    )
+    if new_entries:
+        s = s[:m.end(1)] + new_entries.rstrip('\n') + '\n    ' + s[m.end(1):]
+        p.write_text(s)
+        print(f'>> Added {len(new_entries.splitlines())} extra peer(s) to {target}')
+    else:
+        print('>> Extra peers already present, nothing to add')
+PEERPATCH
 fi
 
 echo "=========================================="
@@ -84,7 +126,7 @@ if [ ! -f /certs/server.crt ] || [ ! -f /certs/server.key ]; then
 
     # Try to detect public IP for SAN
     for url in https://icanhazip.com https://ifconfig.me https://api.ipify.org; do
-        DETECTED_IP=$(curl -sf --max-time 5 "$url" 2>/dev/null | tr -d '[:space:]')
+        DETECTED_IP=$(curl -sf4 --max-time 5 "$url" 2>/dev/null | tr -d '[:space:]')
         if [ -n "$DETECTED_IP" ]; then
             IP_IDX=$((IP_IDX + 1))
             SAN="${SAN}\nIP.${IP_IDX} = ${DETECTED_IP}"

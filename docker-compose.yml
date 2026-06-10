@@ -88,6 +88,11 @@ services:
       ELECTRUMX_TCP_PORT: "${ELECTRUMX_TCP_PORT:-50001}"
       ELECTRUMX_SSL_PORT: "${ELECTRUMX_SSL_PORT:-50002}"
 
+      # Extra seed peers for bootstrap (comma-separated, ElectrumX format).
+      # A new server only needs ONE reachable existing peer here: discovery
+      # then propagates all the others automatically.
+      EXTRA_PEERS: "${ELECTRUMX_EXTRA_PEERS:-}"
+
       SSL_CERTFILE: "/certs/server.crt"
       SSL_KEYFILE: "/certs/server.key"
 

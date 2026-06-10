@@ -32,6 +32,7 @@ nano .env
 | `ELECTRUMX_TCP_PORT` | `50001` | ElectrumX plain TCP port |
 | `ELECTRUMX_SSL_PORT` | `50002` | ElectrumX SSL port |
 | `ELECTRUMX_CACHE_MB` | `800` | ElectrumX in-memory cache (MB); peak RAM can reach 2-3x this during sync |
+| `ELECTRUMX_EXTRA_PEERS` | *(empty)* | Extra seed peers for discovery bootstrap (comma-separated, e.g. `1.2.3.4 t,host.org s t`) |
 | `DASHBOARD_PORT` | `8080` | Web dashboard port |
 | `DASHBOARD_AUTH_USERNAME` | `admin` | Basic Auth username (external clients) |
 | `DASHBOARD_AUTH_PASSWORD` | `change-me-now` | Basic Auth password (external clients) |
@@ -50,6 +51,33 @@ After editing `.env`, restart the dashboard:
 ```bash
 docker compose up -d --force-recreate dashboard
 ```
+
+## Peer discovery
+
+ElectrumX servers find each other automatically: each server announces itself
+(`PEER_ANNOUNCE=true`) to the peers it knows, and every server propagates its
+peer list to the others (`PEER_DISCOVERY=on`). A new server therefore reaches
+the whole network knowing just **one** existing peer — the rest arrive through
+gossip. Both options are already enabled in `docker-compose.yml`.
+
+For a new server to join and be discovered:
+
+1. **Reachability** — ports `50001`/`50002` must be reachable from the
+   internet (router port-forwarding / firewall). Other servers verify an
+   announcement by connecting back: an unreachable server is never propagated.
+2. **Bootstrap** — the image ships with built-in seed peers. To bootstrap from
+   a different server (or add your own seeds) set `ELECTRUMX_EXTRA_PEERS` in
+   `.env` — no image rebuild needed.
+3. **Announced address** — the public IP is auto-detected at startup (with
+   retries). Behind complex NAT setups, set `REPORT_SERVICES` manually in
+   `docker-compose.yml` to override.
+
+Notes:
+
+- Peer discovery starts **after** the initial sync completes; a syncing server
+  shows no peers — that's normal.
+- Peers are persisted in the ElectrumX database, so an already-discovered
+  server keeps working even if all the original seeds go offline.
 
 ## Ports summary
 
