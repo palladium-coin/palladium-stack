@@ -10,6 +10,8 @@ services:
     image: palladium-node:local
     container_name: palladium-node
     restart: unless-stopped
+    labels:
+      - "autoheal=true"
     networks:
       - palladium
     ports:
@@ -53,6 +55,8 @@ services:
     image: plm-electrumx:local
     container_name: plm-electrumx
     restart: unless-stopped
+    labels:
+      - "autoheal=true"
     depends_on:
       palladiumd:
         condition: service_healthy
@@ -140,6 +144,8 @@ services:
     image: palladium-dashboard:local
     container_name: palladium-dashboard
     restart: unless-stopped
+    labels:
+      - "autoheal=true"
     depends_on:
       palladiumd:
         condition: service_healthy
@@ -170,3 +176,17 @@ services:
     volumes:
       - ./.palladium/palladium.conf:/palladium-config/palladium.conf:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  # Restarts any container labeled autoheal=true once Docker marks it
+  # "unhealthy" — restart: unless-stopped alone does NOT do this, it only
+  # restarts on the process actually exiting. This is what would have
+  # recovered the dashboard automatically instead of it sitting wedged
+  # for days until someone noticed and restarted it by hand.
+  autoheal:
+    image: willfarrell/autoheal:latest
+    container_name: palladium-autoheal
+    restart: unless-stopped
+    environment:
+      AUTOHEAL_CONTAINER_LABEL: autoheal
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock

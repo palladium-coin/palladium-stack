@@ -34,7 +34,11 @@ docker exec plm-electrumx electrumx_rpc -p 8000 peers
 
 ## Architecture
 
-Three services on a Docker network with the **fixed name `palladium`** (other stacks on the host join it with `external: true`). RPC (2332) and ZMQ ports are never exposed on the host; inter-service traffic uses Docker DNS names (`palladiumd:2332`).
+Four services on a Docker network with the **fixed name `palladium`** (other stacks on the host join it with `external: true`). RPC (2332) and ZMQ ports are never exposed on the host; inter-service traffic uses Docker DNS names (`palladiumd:2332`).
+
+### Autoheal
+
+`palladiumd`, `electrumx`, and `dashboard` all carry the label `autoheal=true`; the `autoheal` service (`willfarrell/autoheal`, watching `docker.sock`) restarts any of them once Docker's healthcheck marks it **unhealthy** — `restart: unless-stopped` alone only reacts to the process exiting, not to a wedged-but-alive process. Add the label to any new service that should recover automatically from a stuck healthcheck.
 
 ### ElectrumX: upstream image + layered patching (the core pattern)
 
