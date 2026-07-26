@@ -17,14 +17,10 @@ RUN apt-get update && apt-get install -y \
 # Copy Palladium binaries from daemon folder
 COPY daemon/palladiumd /usr/local/bin/
 COPY daemon/palladium-cli /usr/local/bin/
-COPY daemon/palladium-tx /usr/local/bin/
-COPY daemon/palladium-wallet /usr/local/bin/
 
 # Make binaries executable
 RUN chmod +x /usr/local/bin/palladiumd \
-    /usr/local/bin/palladium-cli \
-    /usr/local/bin/palladium-tx \
-    /usr/local/bin/palladium-wallet
+    /usr/local/bin/palladium-cli
 
 # Create data directory
 RUN mkdir -p /root/.palladium
